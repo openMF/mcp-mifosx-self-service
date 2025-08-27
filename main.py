@@ -1,512 +1,621 @@
-# # main.py
-# import base64
-# import httpx
-# from fastapi import FastAPI, Body, Header, HTTPException, Path
-# from pydantic import BaseModel, Field
-# from typing import Optional, List, Dict, Any
-# from fastapi_mcp import FastApiMCP
-# # --- Configuration ---
-# # It's recommended to move these to environment variables for production
-# FINERACT_BASE_URL = "https://tt.mifos.community/fineract-provider/api/v1"
-# FINERACT_TENANT_ID = "default"
+"""
+TT Mobile Banking MCP Server
+FastMCP server implementation for TT Mobile Banking API endpoints
+"""
 
-# app = FastAPI(
-#     title="Fineract Mobile Banking Tools for MCP",
-#     description="A set of tools, based on a Postman collection, to interact with the Fineract self-service API.",
-#     version="1.0.0",
-# )
-
-# # --- Reusable HTTP Client ---
-# # Using a single, reusable client is more efficient.
-# client = httpx.AsyncClient(base_url=FINERACT_BASE_URL)
-
-# mcp = FastApiMCP(
-#    app
-# )
-# mcp.mount() 
-
-# async def get_auth_headers(
-#     username: str = Header(..., description="User's login username."),
-#     password: str = Header(..., description="User's login password."),
-# ) -> Dict[str, str]:
-#     """Creates Basic Authentication headers from username and password."""
-#     credentials = f"{username}:{password}"
-#     token = base64.b64encode(credentials.encode()).decode("utf-8")
-#     return {
-#         "Fineract-Platform-TenantId": FINERACT_TENANT_ID,
-#         "Authorization": f"Basic {token}",
-#     }
-
-# # --- Pydantic Models for Request Bodies ---
-# # These models ensure that the data sent to our tools is valid.
-
-# class SelfServiceRegistrationPayload(BaseModel):
-#     username: str = Field(..., example="maria")
-#     accountNumber: str = Field(..., example="000000104")
-#     password: str = Field(..., example="T3l3c0m2025#")
-#     firstName: str = Field(..., example="MARIA")
-#     mobileNumber: str = Field(..., example="5522649495")
-#     lastName: str = Field(..., example="MERCEDES")
-#     email: str = Field(..., example="devops@fintecheando.mx")
-#     authenticationMode: str = Field(..., example="email")
-
-# class ConfirmRegistrationPayload(BaseModel):
-#     requestId: int = Field(..., example=45)
-#     authenticationToken: str = Field(..., example="1311")
-
-# class LoginPayload(BaseModel):
-#     username: str = Field(..., example="maria")
-#     password: str = Field(..., example="password")
-
-# class BeneficiaryPayload(BaseModel):
-#     locale: str = Field("en", example="en")
-#     name: str
-#     officeName: str = Field(..., example="Head Office")
-#     accountNumber: str
-#     accountType: int = Field(..., description="1 for Savings, 2 for Loan")
-#     transferLimit: float
-
-# class UpdateBeneficiaryPayload(BaseModel):
-#     name: str
-#     transferLimit: float
-
-# class AccountTransferPayload(BaseModel):
-#     toOfficeId: int
-#     toClientId: int
-#     toAccountType: int
-#     toAccountId: str
-#     transferAmount: float
-#     transferDate: str = Field(..., example="03 March 2025")
-#     transferDescription: str
-#     dateFormat: str = "dd MMMM yyyy"
-#     locale: str = "en"
-#     fromAccountId: str
-#     fromAccountType: str
-#     fromClientId: int
-#     fromOfficeId: int
-
-
-# # --- Tool Definitions (API Endpoints) ---
-
-# @app.post("/mobile-banking/register-self-service", summary="REGISTER SELF SERVICE FOR EXISTING CLIENT")
-# async def register_self_service(payload: SelfServiceRegistrationPayload = Body(...)):
-#     """Registers a new self-service user for an existing client."""
-#     headers = {"Fineract-Platform-TenantId": FINERACT_TENANT_ID}
-#     try:
-#         response = await client.post("/self/registration", json=payload.dict(), headers=headers)
-#         response.raise_for_status()
-#         return response.json()
-#     except httpx.HTTPStatusError as e:
-#         raise HTTPException(status_code=e.response.status_code, detail=e.response.json())
-    
-
-# @app.post("/mobile-banking/confirm-registration", summary="CONFIRM SELF SERVICE USER REGISTRATION")
-# async def confirm_registration(payload: ConfirmRegistrationPayload = Body(...)):
-#     """Confirms the user registration with a token."""
-#     headers = {"Fineract-Platform-TenantId": FINERACT_TENANT_ID}
-#     try:
-#         response = await client.post("/self/registration/user", json=payload.dict(), headers=headers)
-#         response.raise_for_status()
-#         return response.json()
-#     except httpx.HTTPStatusError as e:
-#         raise HTTPException(status_code=e.response.status_code, detail=e.response.json())
-
-
-# @app.post("/mobile-banking/login", summary="LOGIN (SELF SERVICE)")
-# async def self_service_login(payload: LoginPayload = Body(...)):
-#     """Authenticates a self-service user and returns a user object with a base64 encoded token."""
-#     headers = {"Fineract-Platform-TenantId": FINERACT_TENANT_ID}
-#     try:
-#         # The Fineract API uses the payload itself for authentication
-#         response = await client.post("/self/authentication", json=payload.dict(), headers=headers)
-#         response.raise_for_status()
-#         return response.json()
-#     except httpx.HTTPStatusError as e:
-#         raise HTTPException(status_code=e.response.status_code, detail=e.response.json())
-
-
-# @app.get("/mobile-banking/clients", summary="GET CLIENTS (SELF SERVICE)")
-# async def get_self_service_clients(
-#     username: str = Header(..., description="User's login username."),
-#     password: str = Header(..., description="User's login password."),
-# ):
-#     """Retrieves client information for the authenticated self-service user."""
-#     auth_headers = await get_auth_headers(username, password)
-#     try:
-#         response = await client.get("/self/clients", headers=auth_headers)
-#         response.raise_for_status()
-#         return response.json()
-#     except httpx.HTTPStatusError as e:
-#         raise HTTPException(status_code=e.response.status_code, detail=e.response.json())
-
-
-# @app.post("/mobile-banking/beneficiaries", summary="ADD BENEFICIARY (SELF SERVICE)")
-# async def add_beneficiary(
-#     payload: BeneficiaryPayload = Body(...),
-#     username: str = Header(..., description="User's login username."),
-#     password: str = Header(..., description="User's login password."),
-# ):
-#     """Adds a new beneficiary (TPT) for the authenticated user."""
-#     auth_headers = await get_auth_headers(username, password)
-#     try:
-#         response = await client.post("/self/beneficiaries/tpt", json=payload.dict(), headers=auth_headers)
-#         response.raise_for_status()
-#         return response.json()
-#     except httpx.HTTPStatusError as e:
-#         raise HTTPException(status_code=e.response.status_code, detail=e.response.json())
-
-
-# @app.get("/mobile-banking/beneficiaries", summary="GET LIST OF BENEFICIARIES (SELF SERVICE)")
-# async def get_beneficiaries(
-#     username: str = Header(..., description="User's login username."),
-#     password: str = Header(..., description="User's login password."),
-# ):
-#     """Retrieves the list of beneficiaries for the authenticated user."""
-#     auth_headers = await get_auth_headers(username, password)
-#     try:
-#         response = await client.get("/self/beneficiaries/tpt", headers=auth_headers)
-#         response.raise_for_status()
-#         return response.json()
-#     except httpx.HTTPStatusError as e:
-#         raise HTTPException(status_code=e.response.status_code, detail=e.response.json())
-
-
-# @app.put("/mobile-banking/beneficiaries/{beneficiary_id}", summary="UPDATE BENEFICIARY (SELF SERVICE)")
-# async def update_beneficiary(
-#     beneficiary_id: int = Path(..., description="The ID of the beneficiary to update."),
-#     payload: UpdateBeneficiaryPayload = Body(...),
-#     username: str = Header(..., description="User's login username."),
-#     password: str = Header(..., description="User's login password."),
-# ):
-#     """Updates an existing beneficiary's name and transfer limit."""
-#     auth_headers = await get_auth_headers(username, password)
-#     try:
-#         response = await client.put(f"/self/beneficiaries/tpt/{beneficiary_id}", json=payload.dict(), headers=auth_headers)
-#         response.raise_for_status()
-#         return response.json()
-#     except httpx.HTTPStatusError as e:
-#         raise HTTPException(status_code=e.response.status_code, detail=e.response.json())
-
-
-# @app.delete("/mobile-banking/beneficiaries/{beneficiary_id}", summary="DELETE BENEFICIARY (SELF SERVICE)")
-# async def delete_beneficiary(
-#     beneficiary_id: int = Path(..., description="The ID of the beneficiary to delete."),
-#     username: str = Header(..., description="User's login username."),
-#     password: str = Header(..., description="User's login password."),
-# ):
-#     """Deletes a beneficiary for the authenticated user."""
-#     auth_headers = await get_auth_headers(username, password)
-#     try:
-#         response = await client.delete(f"/self/beneficiaries/tpt/{beneficiary_id}", headers=auth_headers)
-#         response.raise_for_status()
-#         return response.json()
-#     except httpx.HTTPStatusError as e:
-#         raise HTTPException(status_code=e.response.status_code, detail=e.response.json())
-
-
-# @app.get("/mobile-banking/clients/{client_id}/accounts", summary="GET LIST OF ACCOUNTS (SELF SERVICE)")
-# async def get_client_accounts(
-#     client_id: int = Path(..., description="The ID of the client."),
-#     username: str = Header(..., description="User's login username."),
-#     password: str = Header(..., description="User's login password."),
-# ):
-#     """Retrieves a list of accounts (savings and loans) for a given client."""
-#     auth_headers = await get_auth_headers(username, password)
-#     try:
-#         response = await client.get(f"/self/clients/{client_id}/accounts", headers=auth_headers)
-#         response.raise_for_status()
-#         return response.json()
-#     except httpx.HTTPStatusError as e:
-#         raise HTTPException(status_code=e.response.status_code, detail=e.response.json())
-        
-# @app.get("/mobile-banking/clients/{client_id}/transactions", summary="GET LIST OF TRANSACTIONS (SELF SERVICE)")
-# async def get_client_transactions(
-#     client_id: int = Path(..., description="The ID of the client."),
-#     username: str = Header(..., description="User's login username."),
-#     password: str = Header(..., description="User's login password."),
-# ):
-#     """Retrieves a list of transactions for a given client."""
-#     auth_headers = await get_auth_headers(username, password)
-#     try:
-#         response = await client.get(f"/self/clients/{client_id}/transactions", headers=auth_headers)
-#         response.raise_for_status()
-#         return response.json()
-#     except httpx.HTTPStatusError as e:
-#         raise HTTPException(status_code=e.response.status_code, detail=e.response.json())
-
-
-# @app.post("/mobile-banking/transfers/third-party", summary="TRANSFER TO THIRD PARTY")
-# async def transfer_to_third_party(
-#     payload: AccountTransferPayload = Body(...),
-#     username: str = Header(..., description="User's login username."),
-#     password: str = Header(..., description="User's login password."),
-# ):
-#     """Performs a third-party account transfer."""
-#     auth_headers = await get_auth_headers(username, password)
-#     try:
-#         response = await client.post("/self/accounttransfers?type=tpt", json=payload.dict(), headers=auth_headers)
-#         response.raise_for_status()
-#         return response.json()
-#     except httpx.HTTPStatusError as e:
-#         raise HTTPException(status_code=e.response.status_code, detail=e.response.json())
-
-
-# if __name__ == "__main__":
-#    import uvicorn
-#    uvicorn.run(app, host="0.0.0.0", port=7000) 
-
-# 
-
-import base64
-import httpx
 import os
-from fastapi import FastAPI, Body, Header, HTTPException, Path
+import json
+import base64
+from typing import Optional, Dict, Any, List
+from datetime import datetime
+import httpx
 from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
-from fastapi_mcp import FastApiMCP
+from fastmcp import FastMCP
 
-# --- Configuration ---
-# It's recommended to move these to environment variables for production
-FINERACT_BASE_URL = "https://tt.mifos.community/fineract-provider/api/v1"
-FINERACT_TENANT_ID = "default"
+# Initialize FastMCP server
+mcp = FastMCP("TT Mobile Banking Server")
 
-# Default credentials (can be overridden by environment variables)
-DEFAULT_USERNAME = os.getenv("FINERACT_USERNAME", "maria")
-DEFAULT_PASSWORD = os.getenv("FINERACT_PASSWORD", "password")
+# Configuration
+BASE_URL = os.getenv("TT_BASE_URL", "https://tt.mifos.community")
+DEFAULT_TENANT = os.getenv("TT_TENANT", "default")
+API_BASE_PATH = "/fineract-provider/api/v1"
 
-app = FastAPI(
-    title="Fineract Mobile Banking Tools for MCP",
-    description="A set of tools, based on a Postman collection, to interact with the Fineract self-service API.",
-    version="1.0.0",
-)
 
-# --- Reusable HTTP Client ---
-# Using a single, reusable client is more efficient.
-client = httpx.AsyncClient(base_url=FINERACT_BASE_URL)
+class RegistrationRequest(BaseModel):
+    """Self-service registration request model"""
+    username: str
+    account_number: str = Field(alias="accountNumber")
+    password: str
+    first_name: str = Field(alias="firstName")
+    mobile_number: str = Field(alias="mobileNumber")
+    last_name: str = Field(alias="lastName")
+    email: str
+    authentication_mode: str = Field(default="email", alias="authenticationMode")
 
-async def get_auth_headers(
-    username: Optional[str] = None,
-    password: Optional[str] = None,
-) -> Dict[str, str]:
-    """Creates Basic Authentication headers from username and password."""
-    # Use provided credentials or fall back to defaults
-    auth_username = username or DEFAULT_USERNAME
-    auth_password = password or DEFAULT_PASSWORD
-    
-    credentials = f"{auth_username}:{auth_password}"
-    token = base64.b64encode(credentials.encode()).decode("utf-8")
-    return {
-        "Fineract-Platform-TenantId": FINERACT_TENANT_ID,
-        "Authorization": f"Basic {token}",
-    }
 
-# --- Pydantic Models for Request Bodies ---
-# These models ensure that the data sent to our tools is valid.
+class ConfirmRegistrationRequest(BaseModel):
+    """Registration confirmation request model"""
+    request_id: int = Field(alias="requestId")
+    authentication_token: str = Field(alias="authenticationToken")
 
-class SelfServiceRegistrationPayload(BaseModel):
-    username: str = Field(..., example="maria")
-    accountNumber: str = Field(..., example="000000104")
-    password: str = Field(..., example="T3l3c0m2025#")
-    firstName: str = Field(..., example="MARIA")
-    mobileNumber: str = Field(..., example="5522649495")
-    lastName: str = Field(..., example="MERCEDES")
-    email: str = Field(..., example="devops@fintecheando.mx")
-    authenticationMode: str = Field(..., example="email")
 
-class ConfirmRegistrationPayload(BaseModel):
-    requestId: int = Field(..., example=45)
-    authenticationToken: str = Field(..., example="1311")
+class LoginRequest(BaseModel):
+    """Login request model"""
+    username: str
+    password: str
 
-class LoginPayload(BaseModel):
-    username: str = Field(..., example="maria")
-    password: str = Field(..., example="password")
 
-class BeneficiaryPayload(BaseModel):
-    locale: str = Field("en", example="en")
+class BeneficiaryRequest(BaseModel):
+    """Beneficiary request model"""
     name: str
-    officeName: str = Field(..., example="Head Office")
-    accountNumber: str
-    accountType: int = Field(..., description="1 for Savings, 2 for Loan")
-    transferLimit: float
-
-class UpdateBeneficiaryPayload(BaseModel):
-    name: str
-    transferLimit: float
-
-class AccountTransferPayload(BaseModel):
-    toOfficeId: int
-    toClientId: int
-    toAccountType: int
-    toAccountId: str
-    transferAmount: float
-    transferDate: str = Field(..., example="03 March 2025")
-    transferDescription: str
-    dateFormat: str = "dd MMMM yyyy"
+    office_name: str = Field(alias="officeName")
+    account_number: str = Field(alias="accountNumber")
+    account_type: int = Field(alias="accountType")  # 1=Savings, 2=Loan
+    transfer_limit: float = Field(alias="transferLimit")
     locale: str = "en"
-    fromAccountId: str
-    fromAccountType: str
-    fromClientId: int
-    fromOfficeId: int
 
-# --- Tool Definitions (API Endpoints) ---
 
-@app.post("/mobile-banking/register-self-service", summary="REGISTER SELF SERVICE FOR EXISTING CLIENT")
-async def register_self_service(payload: SelfServiceRegistrationPayload = Body(...)):
-    """Registers a new self-service user for an existing client."""
-    headers = {"Fineract-Platform-TenantId": FINERACT_TENANT_ID}
-    try:
-        response = await client.post("/self/registration", json=payload.dict(), headers=headers)
-        response.raise_for_status()
-        return response.json()
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(status_code=e.response.status_code, detail=e.response.json())
+class TransferRequest(BaseModel):
+    """Transfer request model"""
+    to_office_id: int = Field(alias="toOfficeId")
+    to_client_id: int = Field(alias="toClientId")
+    to_account_type: int = Field(alias="toAccountType")
+    to_account_id: str = Field(alias="toAccountId")
+    transfer_amount: float = Field(alias="transferAmount")
+    transfer_date: str = Field(alias="transferDate")
+    transfer_description: str = Field(alias="transferDescription")
+    date_format: str = Field(default="dd MMMM yyyy", alias="dateFormat")
+    locale: str = "en"
+    from_account_id: str = Field(alias="fromAccountId")
+    from_account_type: str = Field(alias="fromAccountType")
+    from_client_id: int = Field(alias="fromClientId")
+    from_office_id: int = Field(alias="fromOfficeId")
 
-@app.post("/mobile-banking/confirm-registration", summary="CONFIRM SELF SERVICE USER REGISTRATION")
-async def confirm_registration(payload: ConfirmRegistrationPayload = Body(...)):
-    """Confirms the user registration with a token."""
-    headers = {"Fineract-Platform-TenantId": FINERACT_TENANT_ID}
-    try:
-        response = await client.post("/self/registration/user", json=payload.dict(), headers=headers)
-        response.raise_for_status()
-        return response.json()
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(status_code=e.response.status_code, detail=e.response.json())
 
-@app.post("/mobile-banking/login", summary="LOGIN (SELF SERVICE)")
-async def self_service_login(payload: LoginPayload = Body(...)):
-    """Authenticates a self-service user and returns a user object with a base64 encoded token."""
-    headers = {"Fineract-Platform-TenantId": FINERACT_TENANT_ID}
-    try:
-        # The Fineract API uses the payload itself for authentication
-        response = await client.post("/self/authentication", json=payload.dict(), headers=headers)
-        response.raise_for_status()
-        return response.json()
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(status_code=e.response.status_code, detail=e.response.json())
+# Helper functions
+def get_auth_header(username: str, password: str) -> str:
+    """Generate Basic Auth header"""
+    credentials = f"{username}:{password}"
+    encoded = base64.b64encode(credentials.encode()).decode()
+    return f"Basic {encoded}"
 
-@app.get("/mobile-banking/clients", summary="GET CLIENTS (SELF SERVICE)")
-async def get_self_service_clients(
-    username: Optional[str] = Header(default=None, description="User's login username. Uses 'maria' if not provided."),
-    password: Optional[str] = Header(default=None, description="User's login password. Uses 'password' if not provided."),
-):
-    """Retrieves client information for the authenticated self-service user."""
-    auth_headers = await get_auth_headers(username, password)
-    try:
-        response = await client.get("/self/clients", headers=auth_headers)
-        response.raise_for_status()
-        return response.json()
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(status_code=e.response.status_code, detail=e.response.json())
 
-@app.post("/mobile-banking/beneficiaries", summary="ADD BENEFICIARY (SELF SERVICE)")
-async def add_beneficiary(
-    payload: BeneficiaryPayload = Body(...),
-    username: Optional[str] = Header(default=None, description="User's login username. Uses 'maria' if not provided."),
-    password: Optional[str] = Header(default=None, description="User's login password. Uses 'password' if not provided."),
-):
-    """Adds a new beneficiary (TPT) for the authenticated user."""
-    auth_headers = await get_auth_headers(username, password)
-    try:
-        response = await client.post("/self/beneficiaries/tpt", json=payload.dict(), headers=auth_headers)
-        response.raise_for_status()
-        return response.json()
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(status_code=e.response.status_code, detail=e.response.json())
+async def make_request(
+    method: str,
+    endpoint: str,
+    auth: Optional[str] = None,
+    data: Optional[Dict] = None,
+    tenant: str = DEFAULT_TENANT
+) -> Dict[str, Any]:
+    """Make HTTP request to the API"""
+    url = f"{BASE_URL}{API_BASE_PATH}{endpoint}"
+    headers = {
+        "Fineract-Platform-TenantId": tenant,
+        "Content-Type": "application/json"
+    }
+    
+    if auth:
+        headers["Authorization"] = auth
+    
+    async with httpx.AsyncClient() as client:
+        response = await client.request(
+            method=method,
+            url=url,
+            headers=headers,
+            json=data
+        )
+        
+        if response.status_code >= 400:
+            return {
+                "error": True,
+                "status_code": response.status_code,
+                "message": response.text
+            }
+        
+        try:
+            return response.json()
+        except:
+            return {"message": "Success", "status_code": response.status_code}
 
-@app.get("/mobile-banking/beneficiaries", summary="GET LIST OF BENEFICIARIES (SELF SERVICE)")
-async def get_beneficiaries(
-    username: Optional[str] = Header(default=None, description="User's login username. Uses 'maria' if not provided."),
-    password: Optional[str] = Header(default=None, description="User's login password. Uses 'password' if not provided."),
-):
-    """Retrieves the list of beneficiaries for the authenticated user."""
-    auth_headers = await get_auth_headers(username, password)
-    try:
-        response = await client.get("/self/beneficiaries/tpt", headers=auth_headers)
-        response.raise_for_status()
-        return response.json()
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(status_code=e.response.status_code, detail=e.response.json())
 
-@app.put("/mobile-banking/beneficiaries/{beneficiary_id}", summary="UPDATE BENEFICIARY (SELF SERVICE)")
-async def update_beneficiary(
-    beneficiary_id: int = Path(..., description="The ID of the beneficiary to update."),
-    payload: UpdateBeneficiaryPayload = Body(...),
-    username: Optional[str] = Header(default=None, description="User's login username. Uses 'maria' if not provided."),
-    password: Optional[str] = Header(default=None, description="User's login password. Uses 'password' if not provided."),
-):
-    """Updates an existing beneficiary's name and transfer limit."""
-    auth_headers = await get_auth_headers(username, password)
-    try:
-        response = await client.put(f"/self/beneficiaries/tpt/{beneficiary_id}", json=payload.dict(), headers=auth_headers)
-        response.raise_for_status()
-        return response.json()
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(status_code=e.response.status_code, detail=e.response.json())
+# MCP Tools
 
-@app.delete("/mobile-banking/beneficiaries/{beneficiary_id}", summary="DELETE BENEFICIARY (SELF SERVICE)")
-async def delete_beneficiary(
-    beneficiary_id: int = Path(..., description="The ID of the beneficiary to delete."),
-    username: Optional[str] = Header(default=None, description="User's login username. Uses 'maria' if not provided."),
-    password: Optional[str] = Header(default=None, description="User's login password. Uses 'password' if not provided."),
-):
-    """Deletes a beneficiary for the authenticated user."""
-    auth_headers = await get_auth_headers(username, password)
-    try:
-        response = await client.delete(f"/self/beneficiaries/tpt/{beneficiary_id}", headers=auth_headers)
-        response.raise_for_status()
-        return response.json()
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(status_code=e.response.status_code, detail=e.response.json())
+@mcp.tool()
+async def register_self_service(
+    username: str,
+    account_number: str,
+    password: str,
+    first_name: str,
+    last_name: str,
+    mobile_number: str,
+    email: str,
+    authentication_mode: str = "email"
+) -> Dict[str, Any]:
+    """
+    Register a new self-service user for mobile banking
+    
+    Args:
+        username: Desired username
+        account_number: Existing account number
+        password: Strong password for the account
+        first_name: User's first name
+        last_name: User's last name
+        mobile_number: Mobile phone number
+        email: Email address
+        authentication_mode: Mode of authentication (default: email)
+    
+    Returns:
+        Registration response with request ID
+    """
+    data = {
+        "username": username,
+        "accountNumber": account_number,
+        "password": password,
+        "firstName": first_name,
+        "mobileNumber": mobile_number,
+        "lastName": last_name,
+        "email": email,
+        "authenticationMode": authentication_mode
+    }
+    
+    return await make_request("POST", "/self/registration", data=data)
 
-@app.get("/mobile-banking/clients/{client_id}/accounts", summary="GET LIST OF ACCOUNTS (SELF SERVICE)")
+
+@mcp.tool()
+async def confirm_registration(
+    request_id: int,
+    authentication_token: str
+) -> Dict[str, Any]:
+    """
+    Confirm self-service user registration with token
+    
+    Args:
+        request_id: Registration request ID
+        authentication_token: Token received via email/SMS
+    
+    Returns:
+        Confirmation response
+    """
+    data = {
+        "requestId": request_id,
+        "authenticationToken": authentication_token
+    }
+    
+    return await make_request("POST", "/self/registration/user", data=data)
+
+
+@mcp.tool()
+async def login_self_service(
+    username: str,
+    password: str
+) -> Dict[str, Any]:
+    """
+    Login to self-service mobile banking
+    
+    Args:
+        username: Username
+        password: Password
+    
+    Returns:
+        Authentication response with user details
+    """
+    data = {
+        "username": username,
+        "password": password
+    }
+    
+    return await make_request("POST", "/self/authentication", data=data)
+
+
+@mcp.tool()
+async def get_client_info(
+    username: str,
+    password: str
+) -> Dict[str, Any]:
+    """
+    Get client information for authenticated user
+    
+    Args:
+        username: Username for authentication
+        password: Password for authentication
+    
+    Returns:
+        Client information
+    """
+    auth = get_auth_header(username, password)
+    return await make_request("GET", "/self/clients", auth=auth)
+
+
+@mcp.tool()
 async def get_client_accounts(
-    client_id: int = Path(..., description="The ID of the client."),
-    username: Optional[str] = Header(default=None, description="User's login username. Uses 'maria' if not provided."),
-    password: Optional[str] = Header(default=None, description="User's login password. Uses 'password' if not provided."),
-):
-    """Retrieves a list of accounts (savings and loans) for a given client."""
-    auth_headers = await get_auth_headers(username, password)
-    try:
-        response = await client.get(f"/self/clients/{client_id}/accounts", headers=auth_headers)
-        response.raise_for_status()
-        return response.json()
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(status_code=e.response.status_code, detail=e.response.json())
+    client_id: int,
+    username: str,
+    password: str
+) -> Dict[str, Any]:
+    """
+    Get list of accounts for a client
+    
+    Args:
+        client_id: Client ID
+        username: Username for authentication
+        password: Password for authentication
+    
+    Returns:
+        List of client accounts
+    """
+    auth = get_auth_header(username, password)
+    return await make_request("GET", f"/self/clients/{client_id}/accounts", auth=auth)
 
-@app.get("/mobile-banking/clients/{client_id}/transactions", summary="GET LIST OF TRANSACTIONS (SELF SERVICE)")
+
+@mcp.tool()
+async def get_client_charges(
+    client_id: int,
+    username: str,
+    password: str
+) -> Dict[str, Any]:
+    """
+    Get list of charges for a client
+    
+    Args:
+        client_id: Client ID
+        username: Username for authentication
+        password: Password for authentication
+    
+    Returns:
+        List of client charges
+    """
+    auth = get_auth_header(username, password)
+    return await make_request("GET", f"/self/clients/{client_id}/charges", auth=auth)
+
+
+@mcp.tool()
 async def get_client_transactions(
-    client_id: int = Path(..., description="The ID of the client."),
-    username: Optional[str] = Header(default=None, description="User's login username. Uses 'maria' if not provided."),
-    password: Optional[str] = Header(default=None, description="User's login password. Uses 'password' if not provided."),
-):
-    """Retrieves a list of transactions for a given client."""
-    auth_headers = await get_auth_headers(username, password)
-    try:
-        response = await client.get(f"/self/clients/{client_id}/transactions", headers=auth_headers)
-        response.raise_for_status()
-        return response.json()
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(status_code=e.response.status_code, detail=e.response.json())
+    client_id: int,
+    username: str,
+    password: str
+) -> Dict[str, Any]:
+    """
+    Get list of transactions for a client
+    
+    Args:
+        client_id: Client ID
+        username: Username for authentication
+        password: Password for authentication
+    
+    Returns:
+        List of client transactions
+    """
+    auth = get_auth_header(username, password)
+    return await make_request("GET", f"/self/clients/{client_id}/transactions", auth=auth)
 
-@app.post("/mobile-banking/transfers/third-party", summary="TRANSFER TO THIRD PARTY")
-async def transfer_to_third_party(
-    payload: AccountTransferPayload = Body(...),
-    username: Optional[str] = Header(default=None, description="User's login username. Uses 'maria' if not provided."),
-    password: Optional[str] = Header(default=None, description="User's login password. Uses 'password' if not provided."),
-):
-    """Performs a third-party account transfer."""
-    auth_headers = await get_auth_headers(username, password)
-    try:
-        response = await client.post("/self/accounttransfers?type=tpt", json=payload.dict(), headers=auth_headers)
-        response.raise_for_status()
-        return response.json()
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(status_code=e.response.status_code, detail=e.response.json())
 
-# Initialize MCP after all endpoints are defined
-mcp = FastApiMCP(app)
-mcp.mount()
+@mcp.tool()
+async def get_beneficiaries(
+    username: str,
+    password: str
+) -> Dict[str, Any]:
+    """
+    Get list of beneficiaries for third-party transfers
+    
+    Args:
+        username: Username for authentication
+        password: Password for authentication
+    
+    Returns:
+        List of beneficiaries
+    """
+    auth = get_auth_header(username, password)
+    return await make_request("GET", "/self/beneficiaries/tpt", auth=auth)
 
+
+@mcp.tool()
+async def get_beneficiary_template(
+    account_number: str,
+    username: str,
+    password: str
+) -> Dict[str, Any]:
+    """
+    Get beneficiary template for a specific account
+    
+    Args:
+        account_number: Account number
+        username: Username for authentication
+        password: Password for authentication
+    
+    Returns:
+        Beneficiary template
+    """
+    auth = get_auth_header(username, password)
+    return await make_request("GET", f"/self/beneficiaries/tpt/{account_number}", auth=auth)
+
+
+@mcp.tool()
+async def add_beneficiary(
+    name: str,
+    office_name: str,
+    account_number: str,
+    account_type: int,
+    transfer_limit: float,
+    username: str,
+    password: str
+) -> Dict[str, Any]:
+    """
+    Add a new beneficiary for third-party transfers
+    
+    Args:
+        name: Beneficiary name
+        office_name: Office name (e.g., "Head Office")
+        account_number: Beneficiary account number
+        account_type: Account type (1=Savings, 2=Loan)
+        transfer_limit: Maximum transfer limit
+        username: Username for authentication
+        password: Password for authentication
+    
+    Returns:
+        Created beneficiary details
+    """
+    auth = get_auth_header(username, password)
+    data = {
+        "locale": "en",
+        "name": name,
+        "officeName": office_name,
+        "accountNumber": account_number,
+        "accountType": account_type,
+        "transferLimit": transfer_limit
+    }
+    
+    return await make_request("POST", "/self/beneficiaries/tpt", auth=auth, data=data)
+
+
+@mcp.tool()
+async def update_beneficiary(
+    beneficiary_id: int,
+    name: Optional[str],
+    transfer_limit: Optional[float],
+    username: str,
+    password: str
+) -> Dict[str, Any]:
+    """
+    Update an existing beneficiary
+    
+    Args:
+        beneficiary_id: Beneficiary ID to update
+        name: New beneficiary name (optional)
+        transfer_limit: New transfer limit (optional)
+        username: Username for authentication
+        password: Password for authentication
+    
+    Returns:
+        Updated beneficiary details
+    """
+    auth = get_auth_header(username, password)
+    data = {}
+    
+    if name:
+        data["name"] = name
+    if transfer_limit is not None:
+        data["transferLimit"] = transfer_limit
+    
+    return await make_request("PUT", f"/self/beneficiaries/tpt/{beneficiary_id}", auth=auth, data=data)
+
+
+@mcp.tool()
+async def delete_beneficiary(
+    beneficiary_id: int,
+    username: str,
+    password: str
+) -> Dict[str, Any]:
+    """
+    Delete a beneficiary
+    
+    Args:
+        beneficiary_id: Beneficiary ID to delete
+        username: Username for authentication
+        password: Password for authentication
+    
+    Returns:
+        Deletion confirmation
+    """
+    auth = get_auth_header(username, password)
+    return await make_request("DELETE", f"/self/beneficiaries/tpt/{beneficiary_id}", auth=auth)
+
+
+@mcp.tool()
+async def get_transfer_template(
+    username: str,
+    password: str
+) -> Dict[str, Any]:
+    """
+    Get transfer template for third-party transfers
+    
+    Args:
+        username: Username for authentication
+        password: Password for authentication
+    
+    Returns:
+        Transfer template with available options
+    """
+    auth = get_auth_header(username, password)
+    return await make_request("GET", '/self/accounttransfers/template?type="tpt"', auth=auth)
+
+
+@mcp.tool()
+async def make_third_party_transfer(
+    from_account_id: str,
+    from_account_type: str,
+    from_client_id: int,
+    from_office_id: int,
+    to_account_id: str,
+    to_account_type: int,
+    to_client_id: int,
+    to_office_id: int,
+    transfer_amount: float,
+    transfer_date: str,
+    transfer_description: str,
+    username: str,
+    password: str
+) -> Dict[str, Any]:
+    """
+    Make a third-party transfer
+    
+    Args:
+        from_account_id: Source account ID
+        from_account_type: Source account type
+        from_client_id: Source client ID
+        from_office_id: Source office ID
+        to_account_id: Destination account ID
+        to_account_type: Destination account type (1=Savings, 2=Loan)
+        to_client_id: Destination client ID
+        to_office_id: Destination office ID
+        transfer_amount: Amount to transfer
+        transfer_date: Transfer date (format: "dd MMMM yyyy")
+        transfer_description: Transfer description
+        username: Username for authentication
+        password: Password for authentication
+    
+    Returns:
+        Transfer confirmation details
+    """
+    auth = get_auth_header(username, password)
+    data = {
+        "toOfficeId": to_office_id,
+        "toClientId": to_client_id,
+        "toAccountType": to_account_type,
+        "toAccountId": to_account_id,
+        "transferAmount": transfer_amount,
+        "transferDate": transfer_date,
+        "transferDescription": transfer_description,
+        "dateFormat": "dd MMMM yyyy",
+        "locale": "en",
+        "fromAccountId": from_account_id,
+        "fromAccountType": from_account_type,
+        "fromClientId": from_client_id,
+        "fromOfficeId": from_office_id
+    }
+    
+    return await make_request("POST", '/self/accounttransfers?type="tpt"', auth=auth, data=data)
+
+
+# Resources for providing context about the API
+
+@mcp.resource("file:///resources/mobile-banking-overview")
+async def get_overview() -> str:
+    """Overview of TT Mobile Banking API capabilities"""
+    return """
+    # TT Mobile Banking API Overview
+    
+    This MCP server provides access to the TT Mobile Banking API, which includes:
+    
+    ## User Management
+    - Self-service registration for existing clients
+    - Registration confirmation with authentication tokens
+    - Secure login with username/password
+    
+    ## Account Management
+    - View client information
+    - List all accounts (savings, loans)
+    - View account charges
+    - View transaction history
+    
+    ## Beneficiary Management
+    - Add beneficiaries for third-party transfers
+    - Update beneficiary details and limits
+    - Delete beneficiaries
+    - View beneficiary list
+    
+    ## Transfers
+    - Third-party transfers between accounts
+    - Support for both savings and loan accounts
+    - Transfer limits and descriptions
+    
+    ## Security
+    - Basic authentication for API calls
+    - Tenant-based isolation
+    - Authentication tokens for registration
+    """
+
+
+@mcp.resource("file:///resources/api-endpoints")
+async def get_endpoints() -> str:
+    """List of available API endpoints"""
+    return """
+    # Available API Endpoints
+    
+    ## Registration & Authentication
+    - POST /self/registration - Register new self-service user
+    - POST /self/registration/user - Confirm registration
+    - POST /self/authentication - Login
+    
+    ## Client Information
+    - GET /self/clients - Get client details
+    - GET /self/clients/{id}/accounts - List accounts
+    - GET /self/clients/{id}/charges - List charges
+    - GET /self/clients/{id}/transactions - List transactions
+    
+    ## Beneficiaries
+    - GET /self/beneficiaries/tpt - List beneficiaries
+    - GET /self/beneficiaries/tpt/{accountNumber} - Get beneficiary template
+    - POST /self/beneficiaries/tpt - Add beneficiary
+    - PUT /self/beneficiaries/tpt/{id} - Update beneficiary
+    - DELETE /self/beneficiaries/tpt/{id} - Delete beneficiary
+    
+    ## Transfers
+    - GET /self/accounttransfers/template?type="tpt" - Transfer template
+    - POST /self/accounttransfers?type="tpt" - Make transfer
+    """
+
+
+@mcp.resource("file:///resources/sample-workflows")
+async def get_workflows() -> str:
+    """Sample workflows for common operations"""
+    return """
+    # Sample Workflows
+    
+    ## 1. New User Registration
+    ```
+    1. Call register_self_service with user details
+    2. User receives authentication token via email
+    3. Call confirm_registration with request_id and token
+    4. User can now login with credentials
+    ```
+    
+    ## 2. View Account Information
+    ```
+    1. Call login_self_service to authenticate
+    2. Call get_client_info to get client ID
+    3. Call get_client_accounts with client ID
+    4. Call get_client_transactions for transaction history
+    ```
+    
+    ## 3. Setup and Make Transfer
+    ```
+    1. Login with credentials
+    2. Call add_beneficiary to add recipient
+    3. Call get_transfer_template for transfer options
+    4. Call make_third_party_transfer with details
+    ```
+    
+    ## 4. Manage Beneficiaries
+    ```
+    1. Login with credentials
+    2. Call get_beneficiaries to list all
+    3. Call update_beneficiary to modify limits
+    4. Call delete_beneficiary to remove
+    ```
+    """
+
+
+# Run the server
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=7000)
+    
+    # You can configure the server with environment variables:
+    # TT_BASE_URL - Base URL for the API (default: https://tt.mifos.community)
+    # TT_TENANT - Default tenant ID (default: default)
+    
+    print(f"Starting TT Mobile Banking MCP Server")
+    print(f"Base URL: {BASE_URL}")
+    print(f"Default Tenant: {DEFAULT_TENANT}")
+    
+    # Run with FastMCP's built-in server
+    mcp.run()
