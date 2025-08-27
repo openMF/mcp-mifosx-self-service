@@ -41,11 +41,22 @@ The application connects to a Fineract API. The base URL and tenant ID are hardc
 
 For authentication, the application uses default credentials (`maria`/`password`), but these can be overridden using environment variables for better security and flexibility.
 
-Set the following environment variables to use your own Fineract credentials:
-
+Use this configuration file with Claude Desktop or any other IDE where you use MCP
 ```bash
-export FINERACT_USERNAME="your_fineract_username"
-export FINERACT_PASSWORD="your_fineract_password"
+{
+  "mcpServers": {
+    "tt-mobile-banking": {
+      "command": "/home/keshav/anaconda3/bin/python", #your path
+      "args": [
+        "/home/keshav/Documents/mcp-mifosx-self-service/main.py" #directory where you have cloned
+      ],
+      "env": {
+        "TT_BASE_URL": "https://tt.mifos.community",
+        "TT_TENANT": "default"
+      }
+    }
+  }
+}
 ```
 
 ## Running the Server
