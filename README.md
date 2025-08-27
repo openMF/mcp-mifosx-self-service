@@ -51,8 +51,8 @@ Use this configuration file with Claude Desktop or any other IDE where you use M
         "/home/keshav/Documents/mcp-mifosx-self-service/main.py" #directory where you have cloned
       ],
       "env": {
-        "TT_BASE_URL": "https://tt.mifos.community",
-        "TT_TENANT": "default"
+        "MIFOS_BASE_URL": "https://tt.mifos.community",
+        "MIFOS_TENANT": "default"
       }
     }
   }
