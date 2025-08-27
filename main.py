@@ -13,11 +13,11 @@ from pydantic import BaseModel, Field
 from fastmcp import FastMCP
 
 # Initialize FastMCP server
-mcp = FastMCP("TT Mobile Banking Server")
+mcp = FastMCP("Mifos Mobile Banking Server")
 
 # Configuration
-BASE_URL = os.getenv("TT_BASE_URL", "https://tt.mifos.community")
-DEFAULT_TENANT = os.getenv("TT_TENANT", "default")
+BASE_URL = os.getenv("MIFOS_BASE_URL", "https://tt.mifos.community")
+DEFAULT_TENANT = os.getenv("MIFOS_TENANT", "default")
 API_BASE_PATH = "/fineract-provider/api/v1"
 
 
@@ -610,8 +610,8 @@ if __name__ == "__main__":
     import uvicorn
     
     # You can configure the server with environment variables:
-    # TT_BASE_URL - Base URL for the API (default: https://tt.mifos.community)
-    # TT_TENANT - Default tenant ID (default: default)
+    # MIFOS_BASE_URL - Base URL for the API (default: https://tt.mifos.community)
+    # MIFOS_TENANT - Default tenant ID (default: default)
     
     print(f"Starting TT Mobile Banking MCP Server")
     print(f"Base URL: {BASE_URL}")
