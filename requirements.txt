@@ -1,4 +1,5 @@
 fastapi
 uvicorn[standard]
 httpx
+fastmcp
 fastapi-mcp
