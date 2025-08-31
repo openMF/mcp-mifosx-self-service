@@ -46,7 +46,7 @@ Use this configuration file with Claude Desktop or any other IDE where you use M
 {
   "mcpServers": {
     "tt-mobile-banking": {
-      "command": "/home/keshav/mcp-mifosx-self-service/bin/python3", #your path
+      "command": "/home/keshav/mcp-mifosx-self-service/venv/bin/python3", #your path
       "args": [
         "/home/keshav/mcp-mifosx-self-service/main.py" #directory where you have cloned
       ],
