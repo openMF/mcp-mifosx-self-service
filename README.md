@@ -17,8 +17,8 @@ This project provides a set of tools, implemented as a FastAPI server, to intera
 
 1.  **Clone the repository:**
     ```bash
-    git clone <your-repo-url>
-    cd offtarget_selectivity
+    git clone https://github.com/openMF/mcp-mifosx-self-service.git
+    cd mcp-mifosx-self-service.
     ```
 
 2.  **Create and activate a virtual environment (recommended):**
