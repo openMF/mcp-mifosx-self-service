@@ -18,7 +18,7 @@ This project provides a set of tools, implemented as a FastAPI server, to intera
 1.  **Clone the repository:**
     ```bash
     git clone https://github.com/openMF/mcp-mifosx-self-service.git
-    cd mcp-mifosx-self-service.
+    cd mcp-mifosx-self-service
     ```
 
 2.  **Create and activate a virtual environment (recommended):**
@@ -46,9 +46,9 @@ Use this configuration file with Claude Desktop or any other IDE where you use M
 {
   "mcpServers": {
     "tt-mobile-banking": {
-      "command": "/home/keshav/anaconda3/bin/python", #your path
+      "command": "/home/keshav/mcp-mifosx-self-service/bin/python3", #your path
       "args": [
-        "/home/keshav/Documents/mcp-mifosx-self-service/main.py" #directory where you have cloned
+        "/home/keshav/mcp-mifosx-self-service/main.py" #directory where you have cloned
       ],
       "env": {
         "MIFOS_BASE_URL": "https://tt.mifos.community",
@@ -66,8 +66,6 @@ To run the MCP server, execute the following command from the project's root dir
 ```bash
 python3 main.py
 ```
-
-The server will start and be accessible at `http://0.0.0.0:7000`. The OpenAPI documentation (Swagger UI) will be available at `http://0.0.0.0:7000/docs`.
 
 ## Available Tools (API Endpoints)
 
