@@ -64,7 +64,7 @@ Use this configuration file with Claude Desktop or any other IDE where you use M
 To run the MCP server, execute the following command from the project's root directory:
 
 ```bash
-uvicorn main:app --host 0.0.0.0 --port 7000
+python3 main.py
 ```
 
 The server will start and be accessible at `http://0.0.0.0:7000`. The OpenAPI documentation (Swagger UI) will be available at `http://0.0.0.0:7000/docs`.
