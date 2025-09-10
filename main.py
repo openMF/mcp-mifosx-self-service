@@ -4,10 +4,8 @@ FastMCP server implementation for TT Mobile Banking API endpoints
 """
 
 import os
-import json
 import base64
-from typing import Optional, Dict, Any, List
-from datetime import datetime
+from typing import Optional, Dict, Any
 import httpx
 from pydantic import BaseModel, Field
 from fastmcp import FastMCP
@@ -104,17 +102,17 @@ async def make_request(
             headers=headers,
             json=data
         )
-        
+
         if response.status_code >= 400:
             return {
                 "error": True,
                 "status_code": response.status_code,
                 "message": response.text
             }
-        
+
         try:
             return response.json()
-        except:
+        except ValueError:
             return {"message": "Success", "status_code": response.status_code}
 
 
@@ -607,13 +605,12 @@ async def get_workflows() -> str:
 
 # Run the server
 if __name__ == "__main__":
-    import uvicorn
     
     # You can configure the server with environment variables:
     # MIFOS_BASE_URL - Base URL for the API (default: https://tt.mifos.community)
     # MIFOS_TENANT - Default tenant ID (default: default)
     
-    print(f"Starting TT Mobile Banking MCP Server")
+    print("Starting TT Mobile Banking MCP Server")
     print(f"Base URL: {BASE_URL}")
     print(f"Default Tenant: {DEFAULT_TENANT}")
     
