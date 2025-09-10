@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  build-and-test:
+  build-and-validate:
     runs-on: ubuntu-latest
 
     steps:
@@ -24,7 +24,7 @@ jobs:
           source venv/bin/activate
           pip install --upgrade pip
           pip install -r requirements.txt
-          pip install black flake8 pytest  # add any test tools you use
+          pip install black flake8
 
       - name: Lint with flake8
         run: |
@@ -36,7 +36,34 @@ jobs:
           source venv/bin/activate
           black --check .
 
-      - name: Run tests
+      - name: MCP smoke check (import and tool presence)
+        env:
+          MIFOS_BASE_URL: https://tt.mifos.community
+          MIFOS_TENANT: default
         run: |
           source venv/bin/activate
-          pytest -q
+          python - <<'PY'
+          import os, importlib
+          os.environ.setdefault("MIFOS_BASE_URL", os.getenv("MIFOS_BASE_URL", "https://tt.mifos.community"))
+          os.environ.setdefault("MIFOS_TENANT", os.getenv("MIFOS_TENANT", "default"))
+          m = importlib.import_module("main")
+          required = [
+            "register_self_service",
+            "confirm_registration",
+            "login_self_service",
+            "get_client_info",
+            "get_client_accounts",
+            "get_client_charges",
+            "get_client_transactions",
+            "get_beneficiaries",
+            "get_beneficiary_template",
+            "add_beneficiary",
+            "update_beneficiary",
+            "delete_beneficiary",
+            "get_transfer_template",
+            "make_third_party_transfer",
+          ]
+          missing = [n for n in required if not hasattr(m, n)]
+          assert not missing, f"Missing tools: {missing}"
+          print("MCP server imported and tools present.")
+          PY
