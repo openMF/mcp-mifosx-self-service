@@ -21,6 +21,7 @@ API_BASE_PATH = "/fineract-provider/api/v1"
 
 class RegistrationRequest(BaseModel):
     """Self-service registration request model"""
+
     username: str
     account_number: str = Field(alias="accountNumber")
     password: str
@@ -33,18 +34,21 @@ class RegistrationRequest(BaseModel):
 
 class ConfirmRegistrationRequest(BaseModel):
     """Registration confirmation request model"""
+
     request_id: int = Field(alias="requestId")
     authentication_token: str = Field(alias="authenticationToken")
 
 
 class LoginRequest(BaseModel):
     """Login request model"""
+
     username: str
     password: str
 
 
 class BeneficiaryRequest(BaseModel):
     """Beneficiary request model"""
+
     name: str
     office_name: str = Field(alias="officeName")
     account_number: str = Field(alias="accountNumber")
@@ -55,6 +59,7 @@ class BeneficiaryRequest(BaseModel):
 
 class TransferRequest(BaseModel):
     """Transfer request model"""
+
     to_office_id: int = Field(alias="toOfficeId")
     to_client_id: int = Field(alias="toClientId")
     to_account_type: int = Field(alias="toAccountType")
@@ -79,36 +84,20 @@ def get_auth_header(username: str, password: str) -> str:
 
 
 async def make_request(
-    method: str,
-    endpoint: str,
-    auth: Optional[str] = None,
-    data: Optional[Dict] = None,
-    tenant: str = DEFAULT_TENANT
+    method: str, endpoint: str, auth: Optional[str] = None, data: Optional[Dict] = None, tenant: str = DEFAULT_TENANT
 ) -> Dict[str, Any]:
     """Make HTTP request to the API"""
     url = f"{BASE_URL}{API_BASE_PATH}{endpoint}"
-    headers = {
-        "Fineract-Platform-TenantId": tenant,
-        "Content-Type": "application/json"
-    }
-    
+    headers = {"Fineract-Platform-TenantId": tenant, "Content-Type": "application/json"}
+
     if auth:
         headers["Authorization"] = auth
-    
+
     async with httpx.AsyncClient() as client:
-        response = await client.request(
-            method=method,
-            url=url,
-            headers=headers,
-            json=data
-        )
+        response = await client.request(method=method, url=url, headers=headers, json=data)
 
         if response.status_code >= 400:
-            return {
-                "error": True,
-                "status_code": response.status_code,
-                "message": response.text
-            }
+            return {"error": True, "status_code": response.status_code, "message": response.text}
 
         try:
             return response.json()
@@ -117,6 +106,7 @@ async def make_request(
 
 
 # MCP Tools
+
 
 @mcp.tool()
 async def register_self_service(
@@ -127,11 +117,11 @@ async def register_self_service(
     last_name: str,
     mobile_number: str,
     email: str,
-    authentication_mode: str = "email"
+    authentication_mode: str = "email",
 ) -> Dict[str, Any]:
     """
     Register a new self-service user for mobile banking
-    
+
     Args:
         username: Desired username
         account_number: Existing account number
@@ -141,7 +131,7 @@ async def register_self_service(
         mobile_number: Mobile phone number
         email: Email address
         authentication_mode: Mode of authentication (default: email)
-    
+
     Returns:
         Registration response with request ID
     """
@@ -153,70 +143,55 @@ async def register_self_service(
         "mobileNumber": mobile_number,
         "lastName": last_name,
         "email": email,
-        "authenticationMode": authentication_mode
+        "authenticationMode": authentication_mode,
     }
-    
+
     return await make_request("POST", "/self/registration", data=data)
 
 
 @mcp.tool()
-async def confirm_registration(
-    request_id: int,
-    authentication_token: str
-) -> Dict[str, Any]:
+async def confirm_registration(request_id: int, authentication_token: str) -> Dict[str, Any]:
     """
     Confirm self-service user registration with token
-    
+
     Args:
         request_id: Registration request ID
         authentication_token: Token received via email/SMS
-    
+
     Returns:
         Confirmation response
     """
-    data = {
-        "requestId": request_id,
-        "authenticationToken": authentication_token
-    }
-    
+    data = {"requestId": request_id, "authenticationToken": authentication_token}
+
     return await make_request("POST", "/self/registration/user", data=data)
 
 
 @mcp.tool()
-async def login_self_service(
-    username: str,
-    password: str
-) -> Dict[str, Any]:
+async def login_self_service(username: str, password: str) -> Dict[str, Any]:
     """
     Login to self-service mobile banking
-    
+
     Args:
         username: Username
         password: Password
-    
+
     Returns:
         Authentication response with user details
     """
-    data = {
-        "username": username,
-        "password": password
-    }
-    
+    data = {"username": username, "password": password}
+
     return await make_request("POST", "/self/authentication", data=data)
 
 
 @mcp.tool()
-async def get_client_info(
-    username: str,
-    password: str
-) -> Dict[str, Any]:
+async def get_client_info(username: str, password: str) -> Dict[str, Any]:
     """
     Get client information for authenticated user
-    
+
     Args:
         username: Username for authentication
         password: Password for authentication
-    
+
     Returns:
         Client information
     """
@@ -225,19 +200,15 @@ async def get_client_info(
 
 
 @mcp.tool()
-async def get_client_accounts(
-    client_id: int,
-    username: str,
-    password: str
-) -> Dict[str, Any]:
+async def get_client_accounts(client_id: int, username: str, password: str) -> Dict[str, Any]:
     """
     Get list of accounts for a client
-    
+
     Args:
         client_id: Client ID
         username: Username for authentication
         password: Password for authentication
-    
+
     Returns:
         List of client accounts
     """
@@ -246,19 +217,15 @@ async def get_client_accounts(
 
 
 @mcp.tool()
-async def get_client_charges(
-    client_id: int,
-    username: str,
-    password: str
-) -> Dict[str, Any]:
+async def get_client_charges(client_id: int, username: str, password: str) -> Dict[str, Any]:
     """
     Get list of charges for a client
-    
+
     Args:
         client_id: Client ID
         username: Username for authentication
         password: Password for authentication
-    
+
     Returns:
         List of client charges
     """
@@ -267,19 +234,15 @@ async def get_client_charges(
 
 
 @mcp.tool()
-async def get_client_transactions(
-    client_id: int,
-    username: str,
-    password: str
-) -> Dict[str, Any]:
+async def get_client_transactions(client_id: int, username: str, password: str) -> Dict[str, Any]:
     """
     Get list of transactions for a client
-    
+
     Args:
         client_id: Client ID
         username: Username for authentication
         password: Password for authentication
-    
+
     Returns:
         List of client transactions
     """
@@ -288,17 +251,14 @@ async def get_client_transactions(
 
 
 @mcp.tool()
-async def get_beneficiaries(
-    username: str,
-    password: str
-) -> Dict[str, Any]:
+async def get_beneficiaries(username: str, password: str) -> Dict[str, Any]:
     """
     Get list of beneficiaries for third-party transfers
-    
+
     Args:
         username: Username for authentication
         password: Password for authentication
-    
+
     Returns:
         List of beneficiaries
     """
@@ -307,19 +267,15 @@ async def get_beneficiaries(
 
 
 @mcp.tool()
-async def get_beneficiary_template(
-    account_number: str,
-    username: str,
-    password: str
-) -> Dict[str, Any]:
+async def get_beneficiary_template(account_number: str, username: str, password: str) -> Dict[str, Any]:
     """
     Get beneficiary template for a specific account
-    
+
     Args:
         account_number: Account number
         username: Username for authentication
         password: Password for authentication
-    
+
     Returns:
         Beneficiary template
     """
@@ -335,11 +291,11 @@ async def add_beneficiary(
     account_type: int,
     transfer_limit: float,
     username: str,
-    password: str
+    password: str,
 ) -> Dict[str, Any]:
     """
     Add a new beneficiary for third-party transfers
-    
+
     Args:
         name: Beneficiary name
         office_name: Office name (e.g., "Head Office")
@@ -348,7 +304,7 @@ async def add_beneficiary(
         transfer_limit: Maximum transfer limit
         username: Username for authentication
         password: Password for authentication
-    
+
     Returns:
         Created beneficiary details
     """
@@ -359,58 +315,50 @@ async def add_beneficiary(
         "officeName": office_name,
         "accountNumber": account_number,
         "accountType": account_type,
-        "transferLimit": transfer_limit
+        "transferLimit": transfer_limit,
     }
-    
+
     return await make_request("POST", "/self/beneficiaries/tpt", auth=auth, data=data)
 
 
 @mcp.tool()
 async def update_beneficiary(
-    beneficiary_id: int,
-    name: Optional[str],
-    transfer_limit: Optional[float],
-    username: str,
-    password: str
+    beneficiary_id: int, name: Optional[str], transfer_limit: Optional[float], username: str, password: str
 ) -> Dict[str, Any]:
     """
     Update an existing beneficiary
-    
+
     Args:
         beneficiary_id: Beneficiary ID to update
         name: New beneficiary name (optional)
         transfer_limit: New transfer limit (optional)
         username: Username for authentication
         password: Password for authentication
-    
+
     Returns:
         Updated beneficiary details
     """
     auth = get_auth_header(username, password)
     data = {}
-    
+
     if name:
         data["name"] = name
     if transfer_limit is not None:
         data["transferLimit"] = transfer_limit
-    
+
     return await make_request("PUT", f"/self/beneficiaries/tpt/{beneficiary_id}", auth=auth, data=data)
 
 
 @mcp.tool()
-async def delete_beneficiary(
-    beneficiary_id: int,
-    username: str,
-    password: str
-) -> Dict[str, Any]:
+async def delete_beneficiary(beneficiary_id: int, username: str, password: str) -> Dict[str, Any]:
     """
     Delete a beneficiary
-    
+
     Args:
         beneficiary_id: Beneficiary ID to delete
         username: Username for authentication
         password: Password for authentication
-    
+
     Returns:
         Deletion confirmation
     """
@@ -419,17 +367,14 @@ async def delete_beneficiary(
 
 
 @mcp.tool()
-async def get_transfer_template(
-    username: str,
-    password: str
-) -> Dict[str, Any]:
+async def get_transfer_template(username: str, password: str) -> Dict[str, Any]:
     """
     Get transfer template for third-party transfers
-    
+
     Args:
         username: Username for authentication
         password: Password for authentication
-    
+
     Returns:
         Transfer template with available options
     """
@@ -451,11 +396,11 @@ async def make_third_party_transfer(
     transfer_date: str,
     transfer_description: str,
     username: str,
-    password: str
+    password: str,
 ) -> Dict[str, Any]:
     """
     Make a third-party transfer
-    
+
     Args:
         from_account_id: Source account ID
         from_account_type: Source account type
@@ -470,7 +415,7 @@ async def make_third_party_transfer(
         transfer_description: Transfer description
         username: Username for authentication
         password: Password for authentication
-    
+
     Returns:
         Transfer confirmation details
     """
@@ -488,13 +433,14 @@ async def make_third_party_transfer(
         "fromAccountId": from_account_id,
         "fromAccountType": from_account_type,
         "fromClientId": from_client_id,
-        "fromOfficeId": from_office_id
+        "fromOfficeId": from_office_id,
     }
-    
+
     return await make_request("POST", '/self/accounttransfers?type="tpt"', auth=auth, data=data)
 
 
 # Resources for providing context about the API
+
 
 @mcp.resource("file:///resources/mobile-banking-overview")
 async def get_overview() -> str:
@@ -605,14 +551,14 @@ async def get_workflows() -> str:
 
 # Run the server
 if __name__ == "__main__":
-    
+
     # You can configure the server with environment variables:
     # MIFOS_BASE_URL - Base URL for the API (default: https://tt.mifos.community)
     # MIFOS_TENANT - Default tenant ID (default: default)
-    
+
     print("Starting TT Mobile Banking MCP Server")
     print(f"Base URL: {BASE_URL}")
     print(f"Default Tenant: {DEFAULT_TENANT}")
-    
+
     # Run with FastMCP's built-in server
     mcp.run()
