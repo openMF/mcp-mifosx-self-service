@@ -2,7 +2,6 @@ from mcp_app import mcp
 from typing import Optional, Dict, Any
 from utils.http import make_request
 from utils.auth import get_auth_header
-from schemas.beneficiary import BeneficiaryRequest
 @mcp.tool()
 async def get_beneficiaries(username: str, password: str) -> Dict[str, Any]:
     """

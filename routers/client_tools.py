@@ -1,5 +1,5 @@
 from mcp_app import mcp
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 from utils.http import make_request
 from utils.auth import get_auth_header
 

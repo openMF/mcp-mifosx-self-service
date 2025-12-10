@@ -1,16 +1,10 @@
 from mcp_app import mcp
 from config.config import BASE_URL, DEFAULT_TENANT
 
-
-
-# import routers to register tools with mcp
-
-import routers.auth_tools 
-import routers.client_tools 
-import routers.beneficiary_tools 
-import routers.transfer_tools 
-
-
+import routers.auth_tools  # noqa: F401
+import routers.client_tools  # noqa: F401
+import routers.beneficiary_tools  # noqa: F401
+import routers.transfer_tools  # noqa: F401
 
 
 if __name__ == "__main__":
@@ -18,6 +12,4 @@ if __name__ == "__main__":
     print(f"Base URL: {BASE_URL}")
     print(f"Default Tenant: {DEFAULT_TENANT}")
 
-
-
-mcp.run()
+    mcp.run()

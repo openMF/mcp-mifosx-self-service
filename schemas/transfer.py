@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 
+
 class TransferRequest(BaseModel):
     """Transfer request model"""
 

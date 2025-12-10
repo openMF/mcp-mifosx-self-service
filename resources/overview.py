@@ -1,6 +1,7 @@
 from mcp_app import mcp
 
-@mcp.resource("file:///resources/mobile-banking-overview")
+
+@mcp.resource()
 async def get_overview() -> str:
     """Overview of TT Mobile Banking API capabilities"""
     return """

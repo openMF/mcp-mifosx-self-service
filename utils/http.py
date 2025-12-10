@@ -2,7 +2,6 @@ import httpx
 from typing import Optional, Dict, Any
 from config.config import BASE_URL, API_BASE_PATH, DEFAULT_TENANT
 
-
 async def make_request(
     method: str, endpoint: str, auth: Optional[str] = None, data: Optional[Dict] = None, tenant: str = DEFAULT_TENANT
 ) -> Dict[str, Any]:

@@ -1,7 +1,5 @@
 from mcp_app import mcp
-from typing import Optional, Dict, Any
-from schemas.registration import RegistrationRequest
-from schemas.authentication import LoginRequest
+from typing import Dict, Any
 from utils.http import make_request
 
 @mcp.tool()

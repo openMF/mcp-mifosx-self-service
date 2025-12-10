@@ -1,6 +1,7 @@
 from mcp_app import mcp
 
-@mcp.resource("file:///resources/api-endpoints")
+
+@mcp.resource()
 async def get_endpoints() -> str:
     """List of available API endpoints"""
     return """
