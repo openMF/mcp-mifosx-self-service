@@ -4,18 +4,10 @@ from utils.http import make_request
 from utils.auth import get_auth_header
 
 
-
 @mcp.tool()
 async def get_client_info(username: str, password: str) -> Dict[str, Any]:
     """
-    Get client information for authenticated user
-
-    Args:
-        username: Username for authentication
-        password: Password for authentication
-
-    Returns:
-        Client information
+    Get client information for authenticated user.
     """
     auth = get_auth_header(username, password)
     return await make_request("GET", "/self/clients", auth=auth)
@@ -24,15 +16,7 @@ async def get_client_info(username: str, password: str) -> Dict[str, Any]:
 @mcp.tool()
 async def get_client_accounts(client_id: int, username: str, password: str) -> Dict[str, Any]:
     """
-    Get list of accounts for a client
-
-    Args:
-        client_id: Client ID
-        username: Username for authentication
-        password: Password for authentication
-
-    Returns:
-        List of client accounts
+    Get list of accounts for a client.
     """
     auth = get_auth_header(username, password)
     return await make_request("GET", f"/self/clients/{client_id}/accounts", auth=auth)
@@ -41,15 +25,7 @@ async def get_client_accounts(client_id: int, username: str, password: str) -> D
 @mcp.tool()
 async def get_client_charges(client_id: int, username: str, password: str) -> Dict[str, Any]:
     """
-    Get list of charges for a client
-
-    Args:
-        client_id: Client ID
-        username: Username for authentication
-        password: Password for authentication
-
-    Returns:
-        List of client charges
+    Get list of charges for a client.
     """
     auth = get_auth_header(username, password)
     return await make_request("GET", f"/self/clients/{client_id}/charges", auth=auth)
@@ -58,16 +34,7 @@ async def get_client_charges(client_id: int, username: str, password: str) -> Di
 @mcp.tool()
 async def get_client_transactions(client_id: int, username: str, password: str) -> Dict[str, Any]:
     """
-    Get list of transactions for a client
-
-    Args:
-        client_id: Client ID
-        username: Username for authentication
-        password: Password for authentication
-
-    Returns:
-        List of client transactions
+    Get list of transactions for a client.
     """
     auth = get_auth_header(username, password)
     return await make_request("GET", f"/self/clients/{client_id}/transactions", auth=auth)
-

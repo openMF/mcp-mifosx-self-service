@@ -3,17 +3,11 @@ from typing import Dict, Any
 from utils.http import make_request
 from utils.auth import get_auth_header
 
+
 @mcp.tool()
 async def get_transfer_template(username: str, password: str) -> Dict[str, Any]:
     """
-    Get transfer template for third-party transfers
-
-    Args:
-        username: Username for authentication
-        password: Password for authentication
-
-    Returns:
-        Transfer template with available options
+    Get transfer template for third-party transfers.
     """
     auth = get_auth_header(username, password)
     return await make_request("GET", '/self/accounttransfers/template?type="tpt"', auth=auth)
@@ -36,25 +30,7 @@ async def make_third_party_transfer(
     password: str,
 ) -> Dict[str, Any]:
     """
-    Make a third-party transfer
-
-    Args:
-        from_account_id: Source account ID
-        from_account_type: Source account type
-        from_client_id: Source client ID
-        from_office_id: Source office ID
-        to_account_id: Destination account ID
-        to_account_type: Destination account type (1=Savings, 2=Loan)
-        to_client_id: Destination client ID
-        to_office_id: Destination office ID
-        transfer_amount: Amount to transfer
-        transfer_date: Transfer date (format: "dd MMMM yyyy")
-        transfer_description: Transfer description
-        username: Username for authentication
-        password: Password for authentication
-
-    Returns:
-        Transfer confirmation details
+    Make a third-party transfer.
     """
     auth = get_auth_header(username, password)
     data = {

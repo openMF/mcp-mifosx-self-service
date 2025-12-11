@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 
+
 class BeneficiaryRequest(BaseModel):
     """Beneficiary request model"""
 

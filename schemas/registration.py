@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 
+
 class RegistrationRequest(BaseModel):
     """Self-service registration request model"""
 

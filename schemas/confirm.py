@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 
+
 class ConfirmRegistrationRequest(BaseModel):
     """Registration confirmation request model"""
 
