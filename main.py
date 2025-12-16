@@ -2,15 +2,15 @@ from mcp_app import mcp
 from config.config import BASE_URL, DEFAULT_TENANT
 
 # Register MCP tools
-import routers.auth_tools  # noqa: F401
-import routers.client_tools  # noqa: F401
-import routers.beneficiary_tools  # noqa: F401
-import routers.transfer_tools  # noqa: F401
+import routers.auth_tools
+import routers.client_tools  
+import routers.beneficiary_tools  
+import routers.transfer_tools  
 
 # Register MCP resources
-import resources.overview  # noqa: F401
-import resources.endpoints  # noqa: F401
-import resources.workflows  # noqa: F401
+import resources.overview  
+import resources.endpoints  
+import resources.workflows  
 
 
 if __name__ == "__main__":
