@@ -3,3 +3,5 @@ uvicorn[standard]
 httpx
 fastmcp
 fastapi-mcp
+black
+flake8
