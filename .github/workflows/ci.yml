@@ -44,32 +44,32 @@ jobs:
         run: |
           source venv/bin/activate
           python -c "
-import os, importlib
+          import os, importlib
 
-os.environ.setdefault('MIFOS_BASE_URL', os.getenv('MIFOS_BASE_URL', 'https://tt.mifos.community'))
-os.environ.setdefault('MIFOS_TENANT', os.getenv('MIFOS_TENANT', 'default'))
+          os.environ.setdefault('MIFOS_BASE_URL', os.getenv('MIFOS_BASE_URL', 'https://tt.mifos.community'))
+          os.environ.setdefault('MIFOS_TENANT', os.getenv('MIFOS_TENANT', 'default'))
 
-m = importlib.import_module('main')
+          m = importlib.import_module('main')
 
-required = [
-    'register_self_service',
-    'confirm_registration',
-    'login_self_service',
-    'get_client_info',
-    'get_client_accounts',
-    'get_client_charges',
-    'get_client_transactions',
-    'get_beneficiaries',
-    'get_beneficiary_template',
-    'add_beneficiary',
-    'update_beneficiary',
-    'delete_beneficiary',
-    'get_transfer_template',
-    'make_third_party_transfer',
-]
+          required = [
+              'register_self_service',
+              'confirm_registration',
+              'login_self_service',
+              'get_client_info',
+              'get_client_accounts',
+              'get_client_charges',
+              'get_client_transactions',
+              'get_beneficiaries',
+              'get_beneficiary_template',
+              'add_beneficiary',
+              'update_beneficiary',
+              'delete_beneficiary',
+              'get_transfer_template',
+              'make_third_party_transfer',
+            ]
 
-missing = [n for n in required if not hasattr(m, n)]
-assert not missing, f'Missing tools: {missing}'
+          missing = [n for n in required if not hasattr(m, n)]
+          assert not missing, f'Missing tools: {missing}'
 
-print('MCP server imported and tools present.')
-"
+          print('MCP server imported and tools present.')
+          "
