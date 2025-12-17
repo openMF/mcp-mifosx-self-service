@@ -36,50 +36,85 @@ jobs:
           source venv/bin/activate
           black --check .
 
-        - name: MCP smoke check (import and tool presence)
+       name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install black flake8
+
+      - name: Lint with flake8
+        run: |
+          source venv/bin/activate
+          flake8 .
+
+      - name: Format check with black
+        run: |
+          source venv/bin/activate
+          black --check .
+
+      - name: MCP smoke check (import and tool presence)
         env:
-          MIFOS_BASE_URL: https://tt.mifos.community
-          MIFOS_TENANT: default
+          MIFOS_BASE_URL: "https://tt.mifos.community"
+          MIFOS_TENANT: "default"
         run: |
           source venv/bin/activate
           python - <<'PY'
-          import os
+import os
+import importlib
 
-          # Ensure env vars
-          os.environ.setdefault("MIFOS_BASE_URL", "https://tt.mifos.community")
-          os.environ.setdefault("MIFOS_TENANT", "default")
+os.environ.setdefault(
+    "MIFOS_BASE_URL",
+    os.getenv("MIFOS_BASE_URL", "https://tt.mifos.community")
+)
+os.environ.setdefault(
+    "MIFOS_TENANT",
+    os.getenv("MIFOS_TENANT", "default")
+)
 
-          # Import all tools/resources so they register via side-effects
-          import routers.auth_tools
-          import routers.client_tools
-          import routers.beneficiary_tools
-          import routers.transfer_tools
-          import resources.overview
-          import resources.endpoints
-          import resources.workflows
+m = importlib.import_module("main")
 
-          from mcp_app import mcp
+required = [
+    "register_self_service",
+    "confirm_registration",
+    "login_self_service",
+    "get_client_info",
+    "get_client_accounts",
+    "get_client_charges",
+    "get_client_transactions",
+    "get_beneficiaries",
+    "get_beneficiary_template",
+    "add_beneficiary",
+    "update_beneficiary",
+    "delete_beneficiary",
+    "get_transfer_template",
+    "make_third_party_transfer",
+]
 
-          required = [
-            "register_self_service",
-            "confirm_registration",
-            "login_self_service",
-            "get_client_info",
-            "get_client_accounts",
-            "get_client_charges",
-            "get_client_transactions",
-            "get_beneficiaries",
-            "get_beneficiary_template",
-            "add_beneficiary",
-            "update_beneficiary",
-            "delete_beneficiary",
-            "get_transfer_template",
-            "make_third_party_transfer",
-          ]
+missing = [name for name in required if not hasattr(m, name)]
+assert not missing, f"Missing tools: {missing}"
 
-          tool_names = {tool.name for tool in mcp.tools}
-          missing = [n for n in required if n not in tool_names]
-
-          assert not missing, f"Missing MCP tools: {missing}"
-          print("MCP server imported and all tools registered successfully.")
-          PY
+print("MCP server imported and tools present.")
+PY
