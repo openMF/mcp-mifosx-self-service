@@ -11,44 +11,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
-
-      - name: Install dependencies
-        run: |
-          python -m venv venv
-          source venv/bin/activate
-          pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install black flake8
-
-      - name: Lint with flake8
-        run: |
-          source venv/bin/activate
-          flake8 .
-
-      - name: Format check with black
-        run: |
-          source venv/bin/activate
-          black --check .
-
-       name: CI
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
-jobs:
-  build-and-validate:
-    runs-on: ubuntu-latest
-
-    steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -81,40 +43,33 @@ jobs:
           MIFOS_TENANT: "default"
         run: |
           source venv/bin/activate
-          python - <<'PY'
-import os
-import importlib
+          python -c "
+import os, importlib
 
-os.environ.setdefault(
-    "MIFOS_BASE_URL",
-    os.getenv("MIFOS_BASE_URL", "https://tt.mifos.community")
-)
-os.environ.setdefault(
-    "MIFOS_TENANT",
-    os.getenv("MIFOS_TENANT", "default")
-)
+os.environ.setdefault('MIFOS_BASE_URL', os.getenv('MIFOS_BASE_URL', 'https://tt.mifos.community'))
+os.environ.setdefault('MIFOS_TENANT', os.getenv('MIFOS_TENANT', 'default'))
 
-m = importlib.import_module("main")
+m = importlib.import_module('main')
 
 required = [
-    "register_self_service",
-    "confirm_registration",
-    "login_self_service",
-    "get_client_info",
-    "get_client_accounts",
-    "get_client_charges",
-    "get_client_transactions",
-    "get_beneficiaries",
-    "get_beneficiary_template",
-    "add_beneficiary",
-    "update_beneficiary",
-    "delete_beneficiary",
-    "get_transfer_template",
-    "make_third_party_transfer",
+    'register_self_service',
+    'confirm_registration',
+    'login_self_service',
+    'get_client_info',
+    'get_client_accounts',
+    'get_client_charges',
+    'get_client_transactions',
+    'get_beneficiaries',
+    'get_beneficiary_template',
+    'add_beneficiary',
+    'update_beneficiary',
+    'delete_beneficiary',
+    'get_transfer_template',
+    'make_third_party_transfer',
 ]
 
-missing = [name for name in required if not hasattr(m, name)]
-assert not missing, f"Missing tools: {missing}"
+missing = [n for n in required if not hasattr(m, n)]
+assert not missing, f'Missing tools: {missing}'
 
-print("MCP server imported and tools present.")
-PY
+print('MCP server imported and tools present.')
+"
