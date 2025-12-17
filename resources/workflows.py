@@ -1,7 +1,7 @@
 from mcp_app import mcp
 
 
-@mcp.resource()
+@mcp.resource("file:///resources/sample-workflows")
 async def get_workflows() -> str:
     """Sample workflows for common operations"""
     return """

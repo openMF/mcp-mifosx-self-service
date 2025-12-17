@@ -36,17 +36,30 @@ jobs:
           source venv/bin/activate
           black --check .
 
-      - name: MCP smoke check (import and tool presence)
+        - name: MCP smoke check (import and tool presence)
         env:
           MIFOS_BASE_URL: https://tt.mifos.community
           MIFOS_TENANT: default
         run: |
           source venv/bin/activate
           python - <<'PY'
-          import os, importlib
-          os.environ.setdefault("MIFOS_BASE_URL", os.getenv("MIFOS_BASE_URL", "https://tt.mifos.community"))
-          os.environ.setdefault("MIFOS_TENANT", os.getenv("MIFOS_TENANT", "default"))
-          m = importlib.import_module("main")
+          import os
+
+          # Ensure env vars
+          os.environ.setdefault("MIFOS_BASE_URL", "https://tt.mifos.community")
+          os.environ.setdefault("MIFOS_TENANT", "default")
+
+          # Import all tools/resources so they register via side-effects
+          import routers.auth_tools
+          import routers.client_tools
+          import routers.beneficiary_tools
+          import routers.transfer_tools
+          import resources.overview
+          import resources.endpoints
+          import resources.workflows
+
+          from mcp_app import mcp
+
           required = [
             "register_self_service",
             "confirm_registration",
@@ -63,7 +76,10 @@ jobs:
             "get_transfer_template",
             "make_third_party_transfer",
           ]
-          missing = [n for n in required if not hasattr(m, n)]
-          assert not missing, f"Missing tools: {missing}"
-          print("MCP server imported and tools present.")
+
+          tool_names = {tool.name for tool in mcp.tools}
+          missing = [n for n in required if n not in tool_names]
+
+          assert not missing, f"Missing MCP tools: {missing}"
+          print("MCP server imported and all tools registered successfully.")
           PY
