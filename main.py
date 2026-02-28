@@ -12,7 +12,6 @@ import resources.overview  # noqa: F401
 import resources.endpoints  # noqa: F401
 import resources.workflows  # noqa: F401
 
-
 if __name__ == "__main__":
     print("Starting TT Mobile Banking MCP Server")
     print(f"Base URL: {BASE_URL}")

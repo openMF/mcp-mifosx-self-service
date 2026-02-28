@@ -15,6 +15,18 @@ This project enables AI-driven banking workflows such as authentication, account
 *   View client accounts and transactions.
 *   Perform third-party account transfers.
 
+## Architecture
+
+The MCP server acts as a secure bridge between your AI client and the Mifos/Fineract backend.
+
+```mermaid
+graph LR
+    A[AI Client] -- MCP Protocol --> B[FastMCP Server]
+    B -- REST API --> C[MifosX / Fineract]
+    C -- Data --> B
+    B -- Context --> A
+```
+
 ## Project Structure
 
 ```text
@@ -66,7 +78,7 @@ mcp-mifosx-self-service/
 2.  **Create and activate a virtual environment (recommended):**
     ```bash
     python3 -m venv venv
-    source venv/bin/activate
+    source venv/bin/activate  # On Windows: venv\Scripts\activate
     ```
 
 3.  **Install the required dependencies:**
@@ -76,10 +88,12 @@ mcp-mifosx-self-service/
 
 ## Configuration
 
-The application connects to a Fineract API. The base URL and tenant ID are hardcoded in `main.py`:
+The application connects to a Fineract API. Use environment variables (or a `.env` file) for customization:
 
-*   `FINERACT_BASE_URL`: `https://tt.mifos.community/fineract-provider/api/v1`
-*   `FINERACT_TENANT_ID`: `default`
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `MIFOS_BASE_URL` | Base URL of Fineract instance | `https://tt.mifos.community` |
+| `MIFOS_TENANT` | Tenant identifier | `default` |
 
 
 ## Using with Claude Desktop (MCP)
@@ -88,13 +102,13 @@ The application connects to a Fineract API. The base URL and tenant ID are hardc
 For authentication, the application uses default credentials (`maria`/`password`), but these can be overridden using environment variables for better security and flexibility.
 
 Use this configuration file with Claude Desktop or any other IDE where you use MCP
-```bash
+```json
 {
   "mcpServers": {
-    "tt-mobile-banking": {
-      "command": "/home/keshav/mcp-mifosx-self-service/venv/bin/python3", #your path
+    "mifos-banking": {
+      "command": "/ABSOLUTE/PATH/TO/venv/bin/python",
       "args": [
-        "/home/keshav/mcp-mifosx-self-service/main.py" #directory where you have cloned
+        "/ABSOLUTE/PATH/TO/main.py"
       ],
       "env": {
         "MIFOS_BASE_URL": "https://tt.mifos.community",
@@ -147,6 +161,7 @@ These tools are invoked by MCP-compatible AI clients, not directly via HTTP.
 |------|----------------------------|------------------------------------------|
 | GET  | `get_client_info`          | Retrieve client information               |
 | GET  | `get_client_accounts`      | Retrieve client accounts                  |
+| GET  | `get_client_charges`       | Retrieve client charges                   |
 | GET  | `get_client_transactions`  | Retrieve client transactions              |
 
 ### Beneficiaries
@@ -154,6 +169,7 @@ These tools are invoked by MCP-compatible AI clients, not directly via HTTP.
 | Method | MCP Tool Name              | Description                              |
 |------|----------------------------|------------------------------------------|
 | GET  | `get_beneficiaries`        | List all beneficiaries                    |
+| GET  | `get_beneficiary_template` | Get beneficiary template for an account   |
 | POST | `add_beneficiary`          | Add a new beneficiary                     |
 | PUT  | `update_beneficiary`       | Update an existing beneficiary            |
 | DELETE | `delete_beneficiary`     | Delete a beneficiary                      |
