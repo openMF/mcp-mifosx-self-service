@@ -15,6 +15,10 @@ This project enables AI-driven banking workflows such as authentication, account
 *   View client accounts and transactions.
 *   Perform third-party account transfers.
 
+## Contributing
+
+Contributions are welcome! Please read our [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+
 ## Architecture
 
 The MCP server acts as a secure bridge between your AI client and the Mifos/Fineract backend.
