@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  mcp-mifosx:
+    build: .
+    container_name: mcp-mifosx-self-service
+    environment:
+      - MIFOS_BASE_URL=${MIFOS_BASE_URL:-https://tt.mifos.community}
+      - MIFOS_TENANT=${MIFOS_TENANT:-default}
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - mcp-network
+
+networks:
+  mcp-network:
+    driver: bridge
