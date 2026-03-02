@@ -1,6 +1,9 @@
 # MifosX Self Service MCP
 
-This project provides a set of tools, implemented as a FastAPI server, to interact with the Fineract self-service API. It is designed to be used as a Model-Coded-Processor (MCP) server.
+MifosX Self Service MCP is a Model Context Protocol (MCP) server built using FastMCP (Python).
+It exposes a set of AI-callable tools that allow MCP-compatible clients (such as Claude Desktop or DeepChat) to securely interact with the Apache Fineract / MifosX Self-Service APIs.
+
+This project enables AI-driven banking workflows such as authentication, account access, beneficiary management, and transfers — while keeping all sensitive logic on the server side.
 
 ## Features
 
@@ -12,6 +15,57 @@ This project provides a set of tools, implemented as a FastAPI server, to intera
 *   View client accounts and transactions.
 *   Perform third-party account transfers.
 
+## Architecture
+
+The MCP server acts as a secure bridge between your AI client and the Mifos/Fineract backend.
+
+```mermaid
+graph LR
+    A[AI Client] -- MCP Protocol --> B[FastMCP Server]
+    B -- REST API --> C[MifosX / Fineract]
+    C -- Data --> B
+    B -- Context --> A
+```
+
+## Project Structure
+
+```text
+The codebase is organized into a modular, maintainable structure:
+
+mcp-mifosx-self-service/
+│
+├── main.py              # MCP server entry point
+├── mcp_app.py           # FastMCP app initialization
+│
+├── config/
+│   └── config.py        # Environment-based configuration
+│
+├── routers/             # MCP tools grouped by domain
+│   ├── auth_tools.py
+│   ├── client_tools.py
+│   ├── beneficiary_tools.py
+│   └── transfer_tools.py
+│
+├── schemas/             # Pydantic request/response models
+│   ├── registration.py
+│   ├── authentication.py
+│   ├── confirm.py
+│   ├── beneficiary.py
+│   └── transfer.py
+│
+├── utils/               # Shared helpers
+│   ├── http.py          # Centralized HTTP client
+│   └── auth.py          # Auth helpers (Basic Auth)
+│
+├── resources/           # MCP resources (context & docs)
+│   ├── overview.py
+│   ├── endpoints.py
+│   └── workflows.py
+│
+├── requirements.txt
+└── README.md
+
+```
 
 ## Installation
 
@@ -24,7 +78,7 @@ This project provides a set of tools, implemented as a FastAPI server, to intera
 2.  **Create and activate a virtual environment (recommended):**
     ```bash
     python3 -m venv venv
-    source venv/bin/activate
+    source venv/bin/activate  # On Windows: venv\Scripts\activate
     ```
 
 3.  **Install the required dependencies:**
@@ -34,21 +88,27 @@ This project provides a set of tools, implemented as a FastAPI server, to intera
 
 ## Configuration
 
-The application connects to a Fineract API. The base URL and tenant ID are hardcoded in `main.py`:
+The application connects to a Fineract API. Use environment variables (or a `.env` file) for customization:
 
-*   `FINERACT_BASE_URL`: `https://tt.mifos.community/fineract-provider/api/v1`
-*   `FINERACT_TENANT_ID`: `default`
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `MIFOS_BASE_URL` | Base URL of Fineract instance | `https://tt.mifos.community` |
+| `MIFOS_TENANT` | Tenant identifier | `default` |
+
+
+## Using with Claude Desktop (MCP)
+* In Claude Desktop → Settings → Developer → Local MCP servers → Edit Config, add:
 
 For authentication, the application uses default credentials (`maria`/`password`), but these can be overridden using environment variables for better security and flexibility.
 
 Use this configuration file with Claude Desktop or any other IDE where you use MCP
-```bash
+```json
 {
   "mcpServers": {
-    "tt-mobile-banking": {
-      "command": "/home/keshav/mcp-mifosx-self-service/venv/bin/python3", #your path
+    "mifos-banking": {
+      "command": "/ABSOLUTE/PATH/TO/venv/bin/python",
       "args": [
-        "/home/keshav/mcp-mifosx-self-service/main.py" #directory where you have cloned
+        "/ABSOLUTE/PATH/TO/main.py"
       ],
       "env": {
         "MIFOS_BASE_URL": "https://tt.mifos.community",
@@ -58,6 +118,7 @@ Use this configuration file with Claude Desktop or any other IDE where you use M
   }
 }
 ```
+Restart Claude Desktop after saving.
 
 ## Running the Server
 
@@ -67,18 +128,55 @@ To run the MCP server, execute the following command from the project's root dir
 python3 main.py
 ```
 
-## Available Tools (API Endpoints)
+## Example Usage (Natural Language) on Claude
 
-The following tools are exposed by the server:
+Once the MCP server is connected, Claude can invoke the available tools automatically.
+You can paste the following prompts in Claude Desktop to verify that your configuration is working correctly:
 
-*   `POST /mobile-banking/register-self-service`: Register a self-service user.
-*   `POST /mobile-banking/confirm-registration`: Confirm user registration with a token.
-*   `POST /mobile-banking/login`: Authenticate a self-service user.
-*   `GET /mobile-banking/clients`: Get client information.
-*   `POST /mobile-banking/beneficiaries`: Add a new beneficiary.
-*   `GET /mobile-banking/beneficiaries`: Get the list of beneficiaries.
-*   `PUT /mobile-banking/beneficiaries/{beneficiary_id}`: Update a beneficiary.
-*   `DELETE /mobile-banking/beneficiaries/{beneficiary_id}`: Delete a beneficiary.
-*   `GET /mobile-banking/clients/{client_id}/accounts`: Get a list of client accounts.
-*   `GET /mobile-banking/clients/{client_id}/transactions`: Get a list of client transactions.
-*   `POST /mobile-banking/transfers/third-party`: Perform a third-party account transfer.
+- Login using username `maria` and password `password`
+- Get my client information
+- Show my client accounts
+- List my beneficiaries
+
+If these commands return valid responses, your MCP server is successfully connected and operational.
+
+## Available MCP Tools
+
+The MCP server exposes the following AI-callable tools.
+Each tool internally maps to a Fineract self-service API call.
+These tools are invoked by MCP-compatible AI clients, not directly via HTTP.
+
+
+### Authentication
+
+| Method | MCP Tool Name              | Description                              |
+|------|----------------------------|------------------------------------------|
+| POST | `register_self_service`    | Register a new self-service user          |
+| POST | `confirm_registration`     | Confirm user registration with token     |
+| POST | `login_self_service`       | Authenticate a self-service user          |
+
+### Client & Accounts
+
+| Method | MCP Tool Name              | Description                              |
+|------|----------------------------|------------------------------------------|
+| GET  | `get_client_info`          | Retrieve client information               |
+| GET  | `get_client_accounts`      | Retrieve client accounts                  |
+| GET  | `get_client_charges`       | Retrieve client charges                   |
+| GET  | `get_client_transactions`  | Retrieve client transactions              |
+
+### Beneficiaries
+
+| Method | MCP Tool Name              | Description                              |
+|------|----------------------------|------------------------------------------|
+| GET  | `get_beneficiaries`        | List all beneficiaries                    |
+| GET  | `get_beneficiary_template` | Get beneficiary template for an account   |
+| POST | `add_beneficiary`          | Add a new beneficiary                     |
+| PUT  | `update_beneficiary`       | Update an existing beneficiary            |
+| DELETE | `delete_beneficiary`     | Delete a beneficiary                      |
+
+### Transfers
+
+| Method | MCP Tool Name                  | Description                              |
+|------|--------------------------------|------------------------------------------|
+| GET  | `get_transfer_template`        | Retrieve transfer options                |
+| POST | `make_third_party_transfer`    | Perform a third-party account transfer   |

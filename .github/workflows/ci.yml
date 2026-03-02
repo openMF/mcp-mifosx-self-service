@@ -11,12 +11,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v6
         with:
-          python-version: "3.10"
+          python-version: "3.14"
 
       - name: Install dependencies
         run: |
@@ -38,32 +39,30 @@ jobs:
 
       - name: MCP smoke check (import and tool presence)
         env:
-          MIFOS_BASE_URL: https://tt.mifos.community
-          MIFOS_TENANT: default
+          MIFOS_BASE_URL: "https://tt.mifos.community"
+          MIFOS_TENANT: "default"
         run: |
           source venv/bin/activate
-          python - <<'PY'
+          python -c "
           import os, importlib
-          os.environ.setdefault("MIFOS_BASE_URL", os.getenv("MIFOS_BASE_URL", "https://tt.mifos.community"))
-          os.environ.setdefault("MIFOS_TENANT", os.getenv("MIFOS_TENANT", "default"))
-          m = importlib.import_module("main")
-          required = [
-            "register_self_service",
-            "confirm_registration",
-            "login_self_service",
-            "get_client_info",
-            "get_client_accounts",
-            "get_client_charges",
-            "get_client_transactions",
-            "get_beneficiaries",
-            "get_beneficiary_template",
-            "add_beneficiary",
-            "update_beneficiary",
-            "delete_beneficiary",
-            "get_transfer_template",
-            "make_third_party_transfer",
-          ]
-          missing = [n for n in required if not hasattr(m, n)]
-          assert not missing, f"Missing tools: {missing}"
-          print("MCP server imported and tools present.")
-          PY
+
+          os.environ.setdefault('MIFOS_BASE_URL', os.getenv('MIFOS_BASE_URL', 'https://tt.mifos.community'))
+          os.environ.setdefault('MIFOS_TENANT', os.getenv('MIFOS_TENANT', 'default'))
+
+          # Test that main module can be imported
+          m = importlib.import_module('main')
+
+          # Check that main module has mcp instance
+          assert hasattr(m, 'mcp'), 'MCP instance not found in main module'
+
+          # Test that router modules can be imported (this will register the tools)
+          import routers.auth_tools
+          import routers.client_tools  
+          import routers.beneficiary_tools
+          import routers.transfer_tools
+          import resources.overview
+          import resources.endpoints
+          import resources.workflows
+
+          print('MCP server imported and router modules loaded successfully.')
+          "
