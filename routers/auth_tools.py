@@ -1,48 +1,72 @@
 from mcp_app import mcp
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from utils.http import make_request
+from utils.auth import get_auth_header
 
 
-@mcp.tool()
+@mcp.tool(name="register_self_service_existing_client")
 async def register_self_service(
     username: str,
-    account_number: str,
+    accountNumber: str,
     password: str,
-    first_name: str,
-    last_name: str,
-    mobile_number: str,
+    firstName: str,
+    lastName: str,
+    mobileNumber: str,
     email: str,
-    authentication_mode: str = "email",
+    middleName: Optional[str] = None,
+    authenticationMode: str = "email",
 ) -> Dict[str, Any]:
-    """
-    Register a new self-service user for mobile banking.
-    """
+    """Register Self Service for Existing Client - Registers a new user."""
     data = {
         "username": username,
-        "accountNumber": account_number,
+        "accountNumber": accountNumber,
         "password": password,
-        "firstName": first_name,
-        "mobileNumber": mobile_number,
-        "lastName": last_name,
+        "firstName": firstName,
+        "middleName": middleName,
+        "lastName": lastName,
+        "mobileNumber": mobileNumber,
         "email": email,
-        "authenticationMode": authentication_mode,
+        "authenticationMode": authenticationMode,
     }
     return await make_request("POST", "/self/registration", data=data)
 
 
-@mcp.tool()
-async def confirm_registration(request_id: int, authentication_token: str) -> Dict[str, Any]:
-    """
-    Confirm self-service user registration with token.
-    """
-    data = {"requestId": request_id, "authenticationToken": authentication_token}
+@mcp.tool(name="confirm_self_service_user_registration")
+async def confirm_registration(requestId: int, authenticationToken: str) -> Dict[str, Any]:
+    """Confirm Self Service User Registration - Confirms user registration."""
+    data = {"requestId": requestId, "authenticationToken": authenticationToken}
     return await make_request("POST", "/self/registration/user", data=data)
 
 
-@mcp.tool()
-async def login_self_service(username: str, password: str) -> Dict[str, Any]:
-    """
-    Login to self-service mobile banking.
-    """
+@mcp.tool(name="login")
+async def login_mifos(username: str, password: str) -> Dict[str, Any]:
+    """Login - Authenticates user."""
     data = {"username": username, "password": password}
     return await make_request("POST", "/self/authentication", data=data)
+
+
+@mcp.tool(name="confirm_self_service_user_registration_status")
+async def confirm_registration_get(username: str, password: str) -> Dict[str, Any]:
+    """Confirm Self Service User Registration (Status Check) - Confirms status via Clients list."""
+    auth = get_auth_header(username, password)
+    return await make_request("GET", "/self/clients", auth=auth)
+
+
+@mcp.tool(name="update_account_password")
+async def update_password_self(username: str, current_password: str, new_password: str) -> Dict[str, Any]:
+    """Update Account Password - Updates user password."""
+    auth = get_auth_header(username, current_password)
+    data = {"password": current_password, "newPassword": new_password, "repeatNewPassword": new_password}
+    return await make_request("PUT", "/self/user", auth=auth, data=data)
+
+
+@mcp.tool(name="verify_user_registration")
+async def verify_user_registration_alias(requestId: int, authenticationToken: str) -> Dict[str, Any]:
+    """Verify User Registration - Verifies user registration with authentication token."""
+    return await confirm_registration(requestId, authenticationToken)
+
+
+@mcp.tool(name="authenticate_user_self_service")
+async def authenticate_user_alias(username: str, password: str) -> Dict[str, Any]:
+    """Authenticate User (Self Service) - Authenticates user credentials for self-service."""
+    return await login_mifos(username, password)
