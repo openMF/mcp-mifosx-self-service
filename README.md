@@ -3,7 +3,7 @@
 MifosX Self Service MCP is a Model Context Protocol (MCP) server built using FastMCP (Python).
 It exposes a set of AI-callable tools that allow MCP-compatible clients (such as Claude Desktop or DeepChat) to securely interact with the Apache Fineract / MifosX Self-Service APIs.
 
-This project enables AI-driven banking workflows such as authentication, account access, beneficiary management, and transfers — while keeping all sensitive logic on the server side.
+This project enables AI-driven banking workflows such as authentication, account access, beneficiary management, loans, savings, and transfers — while keeping all sensitive logic on the server side.
 
 ## Features
 
@@ -13,6 +13,11 @@ This project enables AI-driven banking workflows such as authentication, account
 *   Manage client information.
 *   Manage beneficiaries (add, list, update, delete).
 *   View client accounts and transactions.
+*   Manage loans (view products, applications, transactions, charges).
+*   Manage savings accounts (products, applications, transactions, charges).
+*   Manage guarantors for loans.
+*   Manage share accounts and products.
+*   Register for push notifications.
 *   Perform third-party account transfers.
 
 ## Architecture
@@ -41,10 +46,15 @@ mcp-mifosx-self-service/
 │   └── config.py        # Environment-based configuration
 │
 ├── routers/             # MCP tools grouped by domain
-│   ├── auth_tools.py
-│   ├── client_tools.py
-│   ├── beneficiary_tools.py
-│   └── transfer_tools.py
+│   ├── auth_tools.py        # User registration & authentication
+│   ├── client_tools.py      # Client information & accounts
+│   ├── beneficiary_tools.py # Beneficiary management
+│   ├── transfer_tools.py   # Third-party transfers
+│   ├── loan_tools.py        # Loan products & accounts
+│   ├── savings_tools.py     # Savings accounts & products
+│   ├── guarantor_tools.py  # Loan guarantor management
+│   ├── shares_tools.py     # Share accounts & products
+│   └── notification_tools.py # Push notification registration
 │
 ├── schemas/             # Pydantic request/response models
 │   ├── registration.py
@@ -63,8 +73,9 @@ mcp-mifosx-self-service/
 │   └── workflows.py
 │
 ├── requirements.txt
+├── Dockerfile
+├── docker-compose.yml
 └── README.md
-
 ```
 
 ## Installation
@@ -95,13 +106,21 @@ The application connects to a Fineract API. Use environment variables (or a `.en
 | `MIFOS_BASE_URL` | Base URL of Fineract instance | `https://tt.mifos.community` |
 | `MIFOS_TENANT` | Tenant identifier | `default` |
 
-
-## Using with Claude Desktop (MCP)
-* In Claude Desktop → Settings → Developer → Local MCP servers → Edit Config, add:
-
 For authentication, the application uses default credentials (`maria`/`password`), but these can be overridden using environment variables for better security and flexibility.
 
-Use this configuration file with Claude Desktop or any other IDE where you use MCP
+## Running with Docker
+
+The project includes Docker support for easy deployment:
+
+```bash
+# Build and run with docker-compose
+docker-compose up --build
+```
+
+## Using with Claude Desktop (MCP)
+
+* In Claude Desktop → Settings → Developer → Local MCP servers → Edit Config, add:
+
 ```json
 {
   "mcpServers": {
@@ -137,6 +156,8 @@ You can paste the following prompts in Claude Desktop to verify that your config
 - Get my client information
 - Show my client accounts
 - List my beneficiaries
+- Get my loan accounts
+- Show my savings accounts
 
 If these commands return valid responses, your MCP server is successfully connected and operational.
 
@@ -146,37 +167,95 @@ The MCP server exposes the following AI-callable tools.
 Each tool internally maps to a Fineract self-service API call.
 These tools are invoked by MCP-compatible AI clients, not directly via HTTP.
 
-
 ### Authentication
 
 | Method | MCP Tool Name              | Description                              |
-|------|----------------------------|------------------------------------------|
-| POST | `register_self_service`    | Register a new self-service user          |
-| POST | `confirm_registration`     | Confirm user registration with token     |
-| POST | `login_self_service`       | Authenticate a self-service user          |
+|--------|----------------------------|------------------------------------------|
+| POST   | `register_self_service`    | Register a new self-service user          |
+| POST   | `confirm_registration`     | Confirm user registration with token     |
+| POST   | `login_self_service`       | Authenticate a self-service user          |
 
 ### Client & Accounts
 
 | Method | MCP Tool Name              | Description                              |
-|------|----------------------------|------------------------------------------|
-| GET  | `get_client_info`          | Retrieve client information               |
-| GET  | `get_client_accounts`      | Retrieve client accounts                  |
-| GET  | `get_client_charges`       | Retrieve client charges                   |
-| GET  | `get_client_transactions`  | Retrieve client transactions              |
+|--------|----------------------------|------------------------------------------|
+| GET    | `get_client_info`          | Retrieve client information               |
+| GET    | `get_client_accounts`      | Retrieve client accounts                  |
+| GET    | `get_client_charges`       | Retrieve client charges                   |
+| GET    | `get_client_transactions`  | Retrieve client transactions              |
 
 ### Beneficiaries
 
 | Method | MCP Tool Name              | Description                              |
-|------|----------------------------|------------------------------------------|
-| GET  | `get_beneficiaries`        | List all beneficiaries                    |
-| GET  | `get_beneficiary_template` | Get beneficiary template for an account   |
-| POST | `add_beneficiary`          | Add a new beneficiary                     |
-| PUT  | `update_beneficiary`       | Update an existing beneficiary            |
-| DELETE | `delete_beneficiary`     | Delete a beneficiary                      |
+|--------|----------------------------|------------------------------------------|
+| GET    | `get_beneficiaries`        | List all beneficiaries                    |
+| GET    | `get_beneficiary_template` | Get beneficiary template for an account  |
+| POST   | `add_beneficiary`          | Add a new beneficiary                     |
+| PUT    | `update_beneficiary`      | Update an existing beneficiary            |
+| DELETE | `delete_beneficiary`      | Delete a beneficiary                      |
+
+### Loans
+
+| Method | MCP Tool Name                    | Description                              |
+|--------|-----------------------------------|------------------------------------------|
+| GET    | `get_loan_products`              | Retrieve available loan products         |
+| GET    | `get_loan_product_details`       | Retrieve loan product details           |
+| GET    | `get_loan_account_details`       | Retrieve loan account details           |
+| GET    | `get_loan_transaction_detail`    | Retrieve loan transaction detail        |
+| GET    | `get_loan_account_charges`       | Retrieve loan charges                    |
+| GET    | `get_loan_template`              | Retrieve loan application template       |
+| POST   | `calculate_loan_repayment_calendar` | Calculate loan repayment schedule    |
+| POST   | `submit_loan_application`        | Submit loan application                  |
+| PUT    | `update_loan_application`        | Update loan application                  |
+| POST   | `withdraw_loan_application`      | Withdraw loan application                |
+
+### Savings
+
+| Method | MCP Tool Name                    | Description                              |
+|--------|-----------------------------------|------------------------------------------|
+| GET    | `get_savings_products`            | Get list of savings products             |
+| GET    | `get_savings_product_details`     | Get savings product details              |
+| GET    | `get_savings_account_details`     | Get savings account details              |
+| GET    | `get_savings_account_transactions`| Get savings account transactions         |
+| GET    | `get_savings_account_transaction_details` | Get transaction details          |
+| GET    | `get_savings_account_charges`     | Get savings account charges              |
+| GET    | `get_savings_account_template_raw`| Get savings account template             |
+| POST   | `submit_savings_application`     | Submit savings account application       |
+| PUT    | `update_savings_account_application` | Update savings account application    |
+
+### Guarantors
+
+| Method | MCP Tool Name              | Description                              |
+|--------|----------------------------|------------------------------------------|
+| GET    | `get_guarantor_template`  | Get template for creating guarantors      |
+| GET    | `get_guarantor_list`      | Get list of guarantors for a loan        |
+| POST   | `create_guarantor`        | Add a new guarantor for a loan           |
+| PUT    | `update_guarantor`        | Update an existing guarantor              |
+| DELETE | `delete_guarantor`        | Delete a loan guarantor                  |
+
+### Shares
+
+| Method | MCP Tool Name              | Description                              |
+|--------|----------------------------|------------------------------------------|
+| GET    | `get_share_product_list`  | Get list of share products               |
+| GET    | `get_share_product_details` | Get share product details              |
+
+### Notifications
+
+| Method | MCP Tool Name                  | Description                              |
+|--------|--------------------------------|------------------------------------------|
+| GET    | `get_user_notification_details` | Get notification registration details  |
+| POST   | `register_for_notifications`  | Register device for push notifications   |
+| PUT    | `update_notification_registration` | Update notification registration     |
 
 ### Transfers
 
 | Method | MCP Tool Name                  | Description                              |
-|------|--------------------------------|------------------------------------------|
-| GET  | `get_transfer_template`        | Retrieve transfer options                |
-| POST | `make_third_party_transfer`    | Perform a third-party account transfer   |
+|--------|--------------------------------|------------------------------------------|
+| GET    | `get_transfer_template`        | Retrieve transfer options                |
+| POST   | `make_third_party_transfer`   | Perform a third-party account transfer  |
+
+## License
+
+This project is licensed under the terms included in the LICENSE file.
+
