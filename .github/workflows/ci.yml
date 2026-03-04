@@ -10,59 +10,30 @@ jobs:
   build-and-validate:
     runs-on: ubuntu-latest
 
+    strategy:
+      fail-fast: true
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.14"
+          python-version: ${{ matrix.python-version }}
 
-      - name: Install dependencies
-        run: |
-          python -m venv venv
-          source venv/bin/activate
-          pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install black flake8
+      - name: Cache pip dependencies
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
 
-      - name: Lint with flake8
-        run: |
-          source venv/bin/activate
-          flake8 .
-
-      - name: Format check with black
-        run: |
-          source venv/bin/activate
-          black --check .
-
-      - name: MCP smoke check (import and tool presence)
+      - name: Run Local CI Tests
         env:
-          MIFOS_BASE_URL: "https://tt.mifos.community"
-          MIFOS_TENANT: "default"
+          MIFOS_BASE_URL: https://tt.mifos.community
+          MIFOS_TENANT: default
         run: |
-          source venv/bin/activate
-          python -c "
-          import os, importlib
-
-          os.environ.setdefault('MIFOS_BASE_URL', os.getenv('MIFOS_BASE_URL', 'https://tt.mifos.community'))
-          os.environ.setdefault('MIFOS_TENANT', os.getenv('MIFOS_TENANT', 'default'))
-
-          # Test that main module can be imported
-          m = importlib.import_module('main')
-
-          # Check that main module has mcp instance
-          assert hasattr(m, 'mcp'), 'MCP instance not found in main module'
-
-          # Test that router modules can be imported (this will register the tools)
-          import routers.auth_tools
-          import routers.client_tools  
-          import routers.beneficiary_tools
-          import routers.transfer_tools
-          import resources.overview
-          import resources.endpoints
-          import resources.workflows
-
-          print('MCP server imported and router modules loaded successfully.')
-          "
+          chmod +x local_test.sh
+          ./local_test.sh
