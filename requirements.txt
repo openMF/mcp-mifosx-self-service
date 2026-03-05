@@ -5,3 +5,6 @@ fastmcp
 fastapi-mcp
 black
 flake8
+pytest
+pytest-asyncio
+pytest-cov
