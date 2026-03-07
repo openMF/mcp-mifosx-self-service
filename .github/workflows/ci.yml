@@ -30,7 +30,27 @@ jobs:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
 
-      - name: Run Local CI Tests
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Check Formatting (Black)
+        run: black --check .
+
+      - name: Run Linting (Flake8)
+        run: flake8 .
+
+      - name: Run Static Type Checking (mypy)
+        run: mypy --explicit-package-bases . || true  # Using '|| true' temporarily so it doesn't break until typings are fully fixed
+
+      - name: Run Unit Tests (pytest)
+        env:
+          MIFOS_BASE_URL: https://tt.mifos.community
+          MIFOS_TENANT: default
+        run: pytest
+
+      - name: Run MCP Smoke Check
         env:
           MIFOS_BASE_URL: https://tt.mifos.community
           MIFOS_TENANT: default

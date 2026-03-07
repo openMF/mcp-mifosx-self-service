@@ -23,7 +23,6 @@ fi
 echo "Installing dependencies..."
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
-python -m pip install black flake8
 
 # 3. Run linting
 echo "Running flake8 linting..."
@@ -33,7 +32,15 @@ flake8 .
 echo "Checking formatting with black..."
 black --check .
 
-# 5. MCP smoke check
+# 5. Run type checking
+echo "Running mypy type checking..."
+mypy --explicit-package-bases . || true  # Let it pass for now even if there are errors, to introduce it smoothly
+
+# 6. Run unit tests
+echo "Running pytest..."
+pytest
+
+# 7. MCP smoke check
 echo "Running MCP smoke check..."
 python -c "
 import os, importlib
