@@ -5,7 +5,9 @@ fastmcp
 fastapi-mcp
 black
 flake8
+ruff
 pytest
 pytest-asyncio
 pytest-cov
 mypy
+bandit
