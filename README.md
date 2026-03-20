@@ -255,6 +255,14 @@ These tools are invoked by MCP-compatible AI clients, not directly via HTTP.
 | GET    | `get_transfer_template`        | Retrieve transfer options                |
 | POST   | `make_third_party_transfer`   | Perform a third-party account transfer  |
 
+## MCP Marketplace
+
+This server can be discovered on MCP marketplaces. See [MARKETPLACE.md](MARKETPLACE.md) for the full list of listings and submission instructions.
+
+| Marketplace | Reference (sister project) |
+|---|---|
+| Glama | [openMF/mcp-mifosx](https://glama.ai/mcp/servers/openMF/mcp-mifosx) |
+
 ## License
 
 This project is licensed under the terms included in the LICENSE file.
