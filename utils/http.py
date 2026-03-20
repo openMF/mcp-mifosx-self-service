@@ -1,6 +1,8 @@
+from typing import Any, Dict, Optional
+
 import httpx
-from typing import Optional, Dict, Any
-from config.config import BASE_URL, API_BASE_PATH, DEFAULT_TENANT
+
+from config.config import API_BASE_PATH, BASE_URL, DEFAULT_TENANT
 
 
 async def make_request(

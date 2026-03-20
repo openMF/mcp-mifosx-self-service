@@ -1,13 +1,15 @@
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import patch, AsyncMock
+
 from routers.auth_tools import (
-    register_self_service,
+    authenticate_user_alias,
     confirm_registration,
-    login_mifos,
     confirm_registration_get,
+    login_mifos,
+    register_self_service,
     update_password_self,
     verify_user_registration_alias,
-    authenticate_user_alias,
 )
 
 

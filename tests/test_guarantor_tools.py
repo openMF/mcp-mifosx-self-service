@@ -1,11 +1,13 @@
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import patch, AsyncMock
+
 from routers.guarantor_tools import (
+    add_loan_guarantor,
+    delete_loan_guarantor,
     get_guarantor_template,
     get_loan_guarantors,
-    add_loan_guarantor,
     update_loan_guarantor,
-    delete_loan_guarantor,
 )
 
 

@@ -1,13 +1,15 @@
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import patch, AsyncMock
+
 from routers.loan_tools import (
-    get_loan_products,
-    get_loan_product_details,
-    get_loan_account_details,
-    get_loan_transaction_detail,
-    get_loan_account_charges,
-    get_loan_template,
     calculate_loan_repayment_calendar,
+    get_loan_account_charges,
+    get_loan_account_details,
+    get_loan_product_details,
+    get_loan_products,
+    get_loan_template,
+    get_loan_transaction_detail,
     submit_loan_application,
     update_loan_application,
     withdraw_loan_application,

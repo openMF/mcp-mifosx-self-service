@@ -38,18 +38,24 @@ jobs:
       - name: Check Formatting (Black)
         run: black --check .
 
+      - name: Run Linting (Ruff)
+        run: ruff check .
+
       - name: Run Linting (Flake8)
         run: flake8 .
 
       - name: Run Static Type Checking (mypy)
-        run: mypy --explicit-package-bases . || true  # Using '|| true' temporarily so it doesn't break until typings are fully fixed
+        run: mypy --explicit-package-bases .
 
-      - name: Run Unit Tests (pytest)
+      - name: Run Security Scan (Bandit)
+        run: bandit -r . --exclude ./.venv,./venv,./tests -q
+
+      - name: Run Unit Tests with Coverage (pytest)
         env:
           MIFOS_BASE_URL: https://tt.mifos.community
           MIFOS_TENANT: default
           PYTHONPATH: .
-        run: python -m pytest
+        run: python -m pytest --cov=. --cov-report=term-missing --cov-fail-under=50
 
       - name: Run MCP Smoke Check
         env:

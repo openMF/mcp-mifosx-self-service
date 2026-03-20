@@ -24,24 +24,32 @@ echo "Installing dependencies..."
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 
-# 3. Run linting
+# 3. Run linting (Ruff)
+echo "Running ruff linting..."
+ruff check .
+
+# 4. Run linting (Flake8)
 echo "Running flake8 linting..."
 flake8 .
 
-# 4. Check formatting
+# 5. Check formatting
 echo "Checking formatting with black..."
 black --check .
 
-# 5. Run type checking
+# 6. Run type checking
 echo "Running mypy type checking..."
-mypy --explicit-package-bases . || true  # Let it pass for now even if there are errors, to introduce it smoothly
+mypy --explicit-package-bases .
 
-# 6. Run unit tests
-echo "Running pytest..."
+# 7. Run security scan
+echo "Running bandit security scan..."
+bandit -r . --exclude ./.venv,./venv,./tests -q
+
+# 8. Run unit tests with coverage
+echo "Running pytest with coverage..."
 export PYTHONPATH=.
-python -m pytest
+python -m pytest --cov=. --cov-report=term-missing --cov-fail-under=50
 
-# 7. MCP smoke check
+# 9. MCP smoke check
 echo "Running MCP smoke check..."
 python -c "
 import os, importlib
@@ -57,7 +65,7 @@ assert hasattr(m, 'mcp'), 'MCP instance not found in main module'
 
 # Test that router modules can be imported (this will register the tools)
 import routers.auth_tools
-import routers.client_tools  
+import routers.client_tools
 import routers.beneficiary_tools
 import routers.transfer_tools
 import resources.overview
@@ -65,6 +73,6 @@ import resources.endpoints
 import resources.workflows
 
 print('MCP server imported and router modules loaded successfully.')
-" 
+"
 
 echo "=== All checks passed! ==="
