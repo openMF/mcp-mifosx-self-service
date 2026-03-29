@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 echo "=== Local CI Test ==="
 
@@ -9,13 +10,19 @@ export MIFOS_TENANT="default"
 # 1. Setup virtual environment
 echo "Setting up virtual environment..."
 python -m venv venv
-source venv/bin/activate
+if [ -f "venv/bin/activate" ]; then
+    source venv/bin/activate
+elif [ -f "venv/Scripts/activate" ]; then
+    source venv/Scripts/activate
+else
+    echo "Virtual environment activation script not found!"
+    exit 1
+fi
 
 # 2. Install dependencies
 echo "Installing dependencies..."
-pip install --upgrade pip
-pip install -r requirements.txt
-pip install black flake8
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 
 # 3. Run linting
 echo "Running flake8 linting..."
@@ -25,7 +32,16 @@ flake8 .
 echo "Checking formatting with black..."
 black --check .
 
-# 5. MCP smoke check
+# 5. Run type checking
+echo "Running mypy type checking..."
+mypy --explicit-package-bases . || true  # Let it pass for now even if there are errors, to introduce it smoothly
+
+# 6. Run unit tests
+echo "Running pytest..."
+export PYTHONPATH=.
+python -m pytest
+
+# 7. MCP smoke check
 echo "Running MCP smoke check..."
 python -c "
 import os, importlib
@@ -49,6 +65,6 @@ import resources.endpoints
 import resources.workflows
 
 print('MCP server imported and router modules loaded successfully.')
-" d
+" 
 
 echo "=== All checks passed! ==="

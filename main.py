@@ -6,12 +6,16 @@ import routers.auth_tools  # noqa: F401
 import routers.client_tools  # noqa: F401
 import routers.beneficiary_tools  # noqa: F401
 import routers.transfer_tools  # noqa: F401
+import routers.loan_tools  # noqa: F401
+import routers.savings_tools  # noqa: F401
+import routers.guarantor_tools  # noqa: F401
+import routers.shares_tools  # noqa: F401
+import routers.notification_tools  # noqa: F401
 
 # Register MCP resources
 import resources.overview  # noqa: F401
 import resources.endpoints  # noqa: F401
 import resources.workflows  # noqa: F401
-
 
 if __name__ == "__main__":
     print("Starting TT Mobile Banking MCP Server")
