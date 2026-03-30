@@ -20,6 +20,10 @@ This project enables AI-driven banking workflows such as authentication, account
 *   Register for push notifications.
 *   Perform third-party account transfers.
 
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/openmf-mcp-mifosx-self-service).
+
 ## Architecture
 
 The MCP server acts as a secure bridge between your AI client and the Mifos/Fineract backend.
