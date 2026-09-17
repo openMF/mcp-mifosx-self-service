@@ -46,6 +46,38 @@ async def test_register_self_service(mock_make_request):
 
 @pytest.mark.asyncio
 @patch("routers.auth_tools.make_request", new_callable=AsyncMock)
+async def test_register_self_service_without_middle_name(mock_make_request):
+    mock_make_request.return_value = {"status": "success"}
+    result = await register_self_service(
+        username="user1",
+        accountNumber="123",
+        password="pwd",
+        firstName="John",
+        lastName="Doe",
+        mobileNumber="1234567890",
+        email="john@example.com",
+        authenticationMode="email",
+    )
+    assert result == {"status": "success"}
+    mock_make_request.assert_called_once_with(
+        "POST",
+        "/self/registration",
+        data={
+            "username": "user1",
+            "accountNumber": "123",
+            "password": "pwd",
+            "firstName": "John",
+            "lastName": "Doe",
+            "mobileNumber": "1234567890",
+            "email": "john@example.com",
+            "authenticationMode": "email",
+        },
+    )
+    assert "middleName" not in mock_make_request.call_args.kwargs["data"]
+
+
+@pytest.mark.asyncio
+@patch("routers.auth_tools.make_request", new_callable=AsyncMock)
 async def test_confirm_registration(mock_make_request):
     mock_make_request.return_value = {"status": "confirmed"}
     result = await confirm_registration(requestId=1, authenticationToken="token123")
