@@ -22,12 +22,13 @@ async def register_self_service(
         "accountNumber": accountNumber,
         "password": password,
         "firstName": firstName,
-        "middleName": middleName,
         "lastName": lastName,
         "mobileNumber": mobileNumber,
         "email": email,
         "authenticationMode": authenticationMode,
     }
+    if middleName:
+        data["middleName"] = middleName
     return await make_request("POST", "/self/registration", data=data)
 
 

@@ -12,7 +12,7 @@ async def get_beneficiary_template(username: str, password: str) -> Dict[str, An
 
 
 @mcp.tool(name="get_beneficiary_list")
-async def get_beneficiary_list(username: str, password: str) -> Dict[str, Any]:
+async def get_beneficiary_list(username: str, password: str) -> Any:
     """Retrieve list of third-party transfer beneficiaries."""
     auth = get_auth_header(username, password)
     return await make_request("GET", "/self/beneficiaries/tpt", auth=auth)
