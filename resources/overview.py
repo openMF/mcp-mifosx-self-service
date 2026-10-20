@@ -12,7 +12,7 @@ async def get_overview() -> str:
     ## User Management
     - Self-service registration for existing clients
     - Registration confirmation with authentication tokens
-    - Secure login with username/password
+    - Login once; the server keeps the session, so tools never ask for a password
     
     ## Account Management
     - View client information
