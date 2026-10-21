@@ -12,3 +12,8 @@ pytest-asyncio
 pytest-cov
 mypy
 pip-audit
+# setuptools <83.0.0 trips PYSEC-2026-3447, which fails the pip-audit step on
+# the 3.10 and 3.11 runners. The flaw is a MANIFEST.in exclusion bypass that
+# only bites on macOS APFS/HFS+ when packing a source distribution, so it does
+# not affect this service, but upgrading is cheaper than arguing with the gate.
+setuptools>=83.0.0
