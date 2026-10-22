@@ -31,6 +31,8 @@ async def get_workflows() -> str:
     2. Call add_beneficiary to add recipient
     3. Call get_transfer_template for transfer options
     4. Call make_third_party_transfer with details
+    5. If the bank needs a verification code, the user types it in the form the client shows. If the tool
+       answers step_up_required instead, ask the USER for the code and call verify_step_up
     ```
 
     ## 4. Manage Beneficiaries

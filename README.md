@@ -108,6 +108,8 @@ The application connects to a Fineract API. Use environment variables (or a `.en
 
 | `MIFOS_USERNAME` | Self-service username (optional, see below) | none |
 | `MIFOS_PASSWORD` | Self-service password (optional, see below) | none |
+| `MIFOS_STEP_UP_CHANNEL` | `EMAIL` or `SMS`: where the verification code is sent (see below) | first channel the bank offers |
+| `MIFOS_STEP_UP_ALLOW_CHAT_OTP` | `false` to forbid typing the code in the chat (see below) | `true` |
 
 ### Authentication
 
@@ -121,6 +123,36 @@ password or the access token. There are two ways to log in:
 
 The session lives in the server process. This is safe for the default stdio transport (one server per user);
 do not share one server between several users.
+
+## Human-in-the-loop confirmation for sensitive tools
+
+When the bank has step-up authentication turned on (selfservice-plugin, MX-488), some operations need a
+one-time code that the **account owner** receives by e-mail or SMS: third-party transfers, transfers between
+your own accounts, and password changes (`transfer_to_third_party`, `make_third_party_transfer`,
+`transfer_between_accounts`, `make_account_transfer`, `update_account_password`). All other tools are unchanged.
+
+The AI never sees the code or the one-time token the bank returns for it. The server asks for the code like this:
+
+1. **The client supports MCP elicitation** (a form shown by the client). The tool shows a form such as
+   "A verification code was sent to a***@example.com. Enter it to confirm: third-party transfer of 100.5 from
+   account 11 to account 22." The person types the code there; it goes straight to this server and the tool
+   finishes the transfer in the same call. A wrong code asks again (the form shows the attempts left); declining
+   or cancelling the form stops the operation with `cancelled: true` and nothing is executed.
+2. **The client does not support elicitation.** The tool answers `step_up_required` with a `challengeId`, a
+   `summary` of what the code approves and the masked destination, and executes nothing. The assistant must ask
+   **you** for the code and call `verify_step_up(challengeId, otp)`. Use `resend_step_up(challengeId)` if the code
+   did not arrive (the bank limits how soon and how often). Typing the code in the chat means the code passes
+   through the AI client and its logs: it is a one-time code that is tied to that one operation, but if you do not
+   accept that, set `MIFOS_STEP_UP_ALLOW_CHAT_OTP=false`. Then, without elicitation, no code is sent at all and the
+   tool tells the user to confirm in the bank's own app or website.
+
+The request that runs after the code is accepted is the one that was approved. The server keeps it (it is not read
+from the AI again), and the bank also ties the code to the accounts and the amount, so the AI cannot approve one
+operation and run another. A waiting operation is kept in memory for 10 minutes and for at most 5 operations.
+
+Step-up needs a login **session**: call `login`. Credentials from `MIFOS_USERNAME` / `MIFOS_PASSWORD` alone are
+not enough for this step (the bank answers `session.required` and the tool says so). `MIFOS_STEP_UP_CHANNEL` picks
+SMS or e-mail when the user has both; if that channel is not available the first one the bank offers is used.
 
 ## Running with Docker
 
@@ -191,6 +223,7 @@ These tools are invoked by MCP-compatible AI clients, not directly via HTTP.
 | POST   | `confirm_registration`     | Confirm user registration with token     |
 | POST   | `login`                    | Log in and keep the session in the server |
 | POST   | `logout`                   | End the session                           |
+| PUT    | `update_account_password`  | Change the password (asks for a one-time code) |
 
 ### Client & Accounts
 
@@ -270,7 +303,10 @@ These tools are invoked by MCP-compatible AI clients, not directly via HTTP.
 | Method | MCP Tool Name                  | Description                              |
 |--------|--------------------------------|------------------------------------------|
 | GET    | `get_transfer_template`        | Retrieve transfer options                |
-| POST   | `make_third_party_transfer`   | Perform a third-party account transfer  |
+| POST   | `make_third_party_transfer`   | Perform a third-party account transfer (may ask for a one-time code) |
+| POST   | `transfer_between_accounts`   | Transfer between your own accounts (may ask for a one-time code) |
+| POST   | `verify_step_up`              | Give the code the user received to the operation that waits for it (clients without elicitation) |
+| POST   | `resend_step_up`              | Send the code again |
 
 ## License
 
