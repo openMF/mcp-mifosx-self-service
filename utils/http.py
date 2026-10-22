@@ -9,20 +9,23 @@ async def make_request(
     auth: Optional[str] = None,
     data: Optional[Dict] = None,
     tenant: str = DEFAULT_TENANT,
+    headers: Optional[Dict[str, str]] = None,
 ) -> Dict[str, Any]:
-    """Make HTTP request to the API."""
+    """Make HTTP request to the API. `headers` are extra request headers (e.g. a step-up token)."""
     url = f"{BASE_URL}{API_BASE_PATH}{endpoint}"
-    headers = {
+    request_headers = {
         "Fineract-Platform-TenantId": tenant,
         "Content-Type": "application/json",
     }
+    if headers:
+        request_headers.update(headers)
 
     if auth:
-        headers["Authorization"] = auth
+        request_headers["Authorization"] = auth
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.request(method=method, url=url, headers=headers, json=data)
+            response = await client.request(method=method, url=url, headers=request_headers, json=data)
 
             if response.status_code >= 400:
                 return {
