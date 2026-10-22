@@ -183,7 +183,7 @@ async def test_update_password_self(mock_make_request):
         "PUT",
         "/self/user",
         auth="Basic YWNjZXNzLWtleQ==",
-        data={"password": "old_pwd", "newPassword": "new_pwd", "repeatNewPassword": "new_pwd"},
+        data={"password": "new_pwd", "repeatPassword": "new_pwd"},
     )
     # The old session is dropped after a password change.
     with pytest.raises(auth.NotLoggedInError):

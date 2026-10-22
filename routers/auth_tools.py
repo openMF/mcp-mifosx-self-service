@@ -9,6 +9,7 @@ from utils.auth import (
     get_auth_header,
     save_login,
 )
+from utils.stepup import resolve_step_up
 
 
 @mcp.tool(name="register_self_service_existing_client")
@@ -87,11 +88,17 @@ async def confirm_registration_get() -> Dict[str, Any]:
 
 @mcp.tool(name="update_account_password")
 async def update_password_self(current_password: str, new_password: str) -> Dict[str, Any]:
-    """Update Account Password - Updates the password of the logged-in user, then logs out."""
+    """Update Account Password - Changes the password of the logged-in user, then logs out.
+
+    The bank asks the user for a one-time verification code first. The user types it, never you.
+    The API does not use the current password (the logged-in session and the code authorize the
+    change), so current_password is not sent.
+    """
     auth = get_auth_header()
-    data = {"password": current_password, "newPassword": new_password, "repeatNewPassword": new_password}
+    data = {"password": new_password, "repeatPassword": new_password}
     result = await make_request("PUT", "/self/user", auth=auth, data=data)
-    if isinstance(result, dict) and not result.get("error"):
+    result = await resolve_step_up(result, "PUT", "/self/user", auth=auth, data=data)
+    if isinstance(result, dict) and not result.get("error") and not result.get("step_up_required"):
         clear_login()
     return result
 
