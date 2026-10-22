@@ -5,7 +5,7 @@ from utils.auth import get_auth_header
 
 
 @mcp.tool(name="get_loan_products")
-async def get_loan_products(client_id: int) -> Dict[str, Any]:
+async def get_loan_products(client_id: int) -> Any:
     """Retrieve available loan products."""
     auth = get_auth_header()
     return await make_request(
@@ -16,7 +16,7 @@ async def get_loan_products(client_id: int) -> Dict[str, Any]:
 
 
 @mcp.tool(name="get_loan_product_details")
-async def get_loan_product_details(client_id: int, product_id: int) -> Dict[str, Any]:
+async def get_loan_product_details(client_id: int, product_id: int) -> Any:
     """Retrieve loan product details."""
     auth = get_auth_header()
     return await make_request(
