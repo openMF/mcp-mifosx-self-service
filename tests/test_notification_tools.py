@@ -19,9 +19,9 @@ async def test_get_user_notification_details(mock_get_auth_header, mock_make_req
     mock_get_auth_header.return_value = mock_auth
     mock_make_request.return_value = {"clientId": 1, "registrationId": "abc123", "platform": "android"}
 
-    result = await get_notification_registration_details(1, "user1", "pwd")
+    result = await get_notification_registration_details(1)
     assert result == {"clientId": 1, "registrationId": "abc123", "platform": "android"}
-    mock_get_auth_header.assert_called_once_with("user1", "pwd")
+    mock_get_auth_header.assert_called_once_with()
     mock_make_request.assert_called_once_with("GET", "/self/device/registration/client/1", auth=mock_auth)
 
 
@@ -32,9 +32,9 @@ async def test_register_for_notifications_android(mock_get_auth_header, mock_mak
     mock_get_auth_header.return_value = mock_auth
     mock_make_request.return_value = {"resourceId": 10}
 
-    result = await register_for_notifications(1, "token_xyz", "user1", "pwd", platform="android")
+    result = await register_for_notifications(1, "token_xyz", platform="android")
     assert result == {"resourceId": 10}
-    mock_get_auth_header.assert_called_once_with("user1", "pwd")
+    mock_get_auth_header.assert_called_once_with()
     mock_make_request.assert_called_once_with(
         "POST",
         "/self/device/registration",
@@ -51,7 +51,7 @@ async def test_register_for_notifications_default_platform(mock_get_auth_header,
     mock_make_request.return_value = {"resourceId": 11}
 
     # Call without specifying platform — should default to "android"
-    result = await register_for_notifications(2, "token_abc", "user1", "pwd")
+    result = await register_for_notifications(2, "token_abc")
     assert result == {"resourceId": 11}
     mock_make_request.assert_called_once_with(
         "POST",
@@ -68,7 +68,7 @@ async def test_register_for_notifications_ios(mock_get_auth_header, mock_make_re
     mock_get_auth_header.return_value = mock_auth
     mock_make_request.return_value = {"resourceId": 12}
 
-    result = await register_for_notifications(3, "ios_token_123", "user1", "pwd", platform="ios")
+    result = await register_for_notifications(3, "ios_token_123", platform="ios")
     assert result == {"resourceId": 12}
     mock_make_request.assert_called_once_with(
         "POST",
@@ -85,9 +85,9 @@ async def test_update_notification_registration(mock_get_auth_header, mock_make_
     mock_get_auth_header.return_value = mock_auth
     mock_make_request.return_value = {"resourceId": 10}
 
-    result = await update_notification_registration(10, "new_token_xyz", "user1", "pwd", platform="android")
+    result = await update_notification_registration(10, "new_token_xyz", platform="android")
     assert result == {"resourceId": 10}
-    mock_get_auth_header.assert_called_once_with("user1", "pwd")
+    mock_get_auth_header.assert_called_once_with()
     mock_make_request.assert_called_once_with(
         "PUT",
         "/self/device/registration/10",
@@ -104,7 +104,7 @@ async def test_update_notification_registration_default_platform(mock_get_auth_h
     mock_make_request.return_value = {"resourceId": 10}
 
     # Call without specifying platform — should default to "android"
-    result = await update_notification_registration(10, "new_token_xyz", "user1", "pwd")
+    result = await update_notification_registration(10, "new_token_xyz")
     assert result == {"resourceId": 10}
     mock_make_request.assert_called_once_with(
         "PUT",
@@ -121,7 +121,7 @@ async def test_get_user_notification_details_not_found(mock_get_auth_header, moc
     mock_get_auth_header.return_value = mock_auth
     mock_make_request.return_value = {"error": True, "status_code": 404, "message": "Client not found"}
 
-    result = await get_notification_registration_details(999, "user1", "pwd")
+    result = await get_notification_registration_details(999)
     assert result["error"] is True
     assert result["status_code"] == 404
 
@@ -133,6 +133,6 @@ async def test_register_for_notifications_error(mock_get_auth_header, mock_make_
     mock_get_auth_header.return_value = mock_auth
     mock_make_request.return_value = {"error": True, "status_code": 400, "message": "Invalid registration ID"}
 
-    result = await register_for_notifications(1, "", "user1", "pwd")
+    result = await register_for_notifications(1, "")
     assert result["error"] is True
     assert result["status_code"] == 400

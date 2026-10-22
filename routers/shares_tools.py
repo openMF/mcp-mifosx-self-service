@@ -5,14 +5,14 @@ from utils.auth import get_auth_header
 
 
 @mcp.tool(name="get_share_product_list")
-async def get_shares_products(client_id: int, username: str, password: str) -> Any:
+async def get_shares_products(client_id: int) -> Any:
     """Get List of Share Product"""
-    auth = get_auth_header(username, password)
+    auth = get_auth_header()
     return await make_request("GET", f"/self/products/share?clientId={client_id}", auth=auth)
 
 
 @mcp.tool(name="get_share_product_details")
-async def get_shares_product_details(client_id: int, product_id: int, username: str, password: str) -> Any:
+async def get_shares_product_details(client_id: int, product_id: int) -> Any:
     """Get Share Product Details"""
-    auth = get_auth_header(username, password)
+    auth = get_auth_header()
     return await make_request("GET", f"/self/products/share?clientId={client_id}&productId={product_id}", auth=auth)

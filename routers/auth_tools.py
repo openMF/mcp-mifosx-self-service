@@ -1,7 +1,14 @@
 from mcp_app import mcp
 from typing import Dict, Any, Optional
 from utils.http import make_request
-from utils.auth import get_auth_header
+from utils.auth import (
+    NOT_LOGGED_IN_MESSAGE,
+    NotLoggedInError,
+    clear_login,
+    env_credentials,
+    get_auth_header,
+    save_login,
+)
 
 
 @mcp.tool(name="register_self_service_existing_client")
@@ -40,25 +47,53 @@ async def confirm_registration(requestId: int, authenticationToken: str) -> Dict
 
 
 @mcp.tool(name="login")
-async def login_mifos(username: str, password: str) -> Dict[str, Any]:
-    """Login - Authenticates user."""
+async def login_mifos(username: Optional[str] = None, password: Optional[str] = None) -> Dict[str, Any]:
+    """Login - Authenticates the user and keeps the session in the server.
+
+    Other tools then use this session, so they do not need a password. If username and
+    password are left out, MIFOS_USERNAME and MIFOS_PASSWORD from the server environment are used.
+    The access token is never returned.
+    """
+    if not (username and password):
+        credentials = env_credentials()
+        if credentials is None:
+            return {"error": True, "status_code": 400, "message": NOT_LOGGED_IN_MESSAGE}
+        username, password = credentials
     data = {"username": username, "password": password}
-    return await make_request("POST", "/self/authentication", data=data)
+    result = await make_request("POST", "/self/authentication", data=data)
+    if isinstance(result, dict) and not result.get("error"):
+        return save_login(result)
+    return result
+
+
+@mcp.tool(name="logout")
+async def logout_mifos() -> Dict[str, Any]:
+    """Logout - Ends the session on the server and forgets it locally."""
+    try:
+        auth = get_auth_header()
+    except NotLoggedInError:
+        return {"message": "Not logged in."}
+    result = await make_request("POST", "/self/authentication/logout", auth=auth)
+    clear_login()
+    return result
 
 
 @mcp.tool(name="confirm_self_service_user_registration_status")
-async def confirm_registration_get(username: str, password: str) -> Dict[str, Any]:
+async def confirm_registration_get() -> Dict[str, Any]:
     """Confirm Self Service User Registration (Status Check) - Confirms status via Clients list."""
-    auth = get_auth_header(username, password)
+    auth = get_auth_header()
     return await make_request("GET", "/self/clients", auth=auth)
 
 
 @mcp.tool(name="update_account_password")
-async def update_password_self(username: str, current_password: str, new_password: str) -> Dict[str, Any]:
-    """Update Account Password - Updates user password."""
-    auth = get_auth_header(username, current_password)
+async def update_password_self(current_password: str, new_password: str) -> Dict[str, Any]:
+    """Update Account Password - Updates the password of the logged-in user, then logs out."""
+    auth = get_auth_header()
     data = {"password": current_password, "newPassword": new_password, "repeatNewPassword": new_password}
-    return await make_request("PUT", "/self/user", auth=auth, data=data)
+    result = await make_request("PUT", "/self/user", auth=auth, data=data)
+    if isinstance(result, dict) and not result.get("error"):
+        clear_login()
+    return result
 
 
 @mcp.tool(name="verify_user_registration")
@@ -68,6 +103,6 @@ async def verify_user_registration_alias(requestId: int, authenticationToken: st
 
 
 @mcp.tool(name="authenticate_user_self_service")
-async def authenticate_user_alias(username: str, password: str) -> Dict[str, Any]:
-    """Authenticate User (Self Service) - Authenticates user credentials for self-service."""
+async def authenticate_user_alias(username: Optional[str] = None, password: Optional[str] = None) -> Dict[str, Any]:
+    """Authenticate User (Self Service) - Same as login."""
     return await login_mifos(username, password)

@@ -2,9 +2,9 @@ fastapi
 uvicorn[standard]
 httpx
 fastmcp
+# mcp 2.x renamed mcp.server.fastmcp (used in mcp_app.py); stay on 1.x until we migrate
+mcp>=1.10,<2
 fastapi-mcp
-# mcp 2.x removed mcp.server.fastmcp (imported by mcp_app.py); pin until we migrate
-mcp<2
 black
 flake8
 pytest
