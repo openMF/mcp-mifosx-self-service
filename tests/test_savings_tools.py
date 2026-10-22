@@ -25,9 +25,9 @@ async def test_get_savings_products(mock_get_auth_header, mock_make_request, moc
     mock_get_auth_header.return_value = mock_auth
     mock_make_request.return_value = [{"id": 1}]
 
-    result = await get_savings_products(1, "user1", "pwd")
+    result = await get_savings_products(1)
     assert result == [{"id": 1}]
-    mock_get_auth_header.assert_called_once_with("user1", "pwd")
+    mock_get_auth_header.assert_called_once_with()
     mock_make_request.assert_called_once_with("GET", "/self/savingsproducts?clientId=1", auth=mock_auth)
 
 
@@ -38,9 +38,9 @@ async def test_get_savings_product_details(mock_get_auth_header, mock_make_reque
     mock_get_auth_header.return_value = mock_auth
     mock_make_request.return_value = {"id": 2}
 
-    result = await get_savings_product_details(1, 2, "user1", "pwd")
+    result = await get_savings_product_details(1, 2)
     assert result == {"id": 2}
-    mock_get_auth_header.assert_called_once_with("user1", "pwd")
+    mock_get_auth_header.assert_called_once_with()
     mock_make_request.assert_called_once_with("GET", "/self/savingsproducts?clientId=1&productId=2", auth=mock_auth)
 
 
@@ -51,9 +51,9 @@ async def test_get_savings_details(mock_get_auth_header, mock_make_request, mock
     mock_get_auth_header.return_value = mock_auth
     mock_make_request.return_value = {"id": 3}
 
-    result = await get_savings_details(3, "user1", "pwd", associations="all")
+    result = await get_savings_details(3, associations="all")
     assert result == {"id": 3}
-    mock_get_auth_header.assert_called_once_with("user1", "pwd")
+    mock_get_auth_header.assert_called_once_with()
     mock_make_request.assert_called_once_with("GET", "/self/savingsaccounts/3?associations=all", auth=mock_auth)
 
 
@@ -64,9 +64,9 @@ async def test_get_savings_transactions(mock_get_auth_header, mock_make_request,
     mock_get_auth_header.return_value = mock_auth
     mock_make_request.return_value = {"transactions": []}
 
-    result = await get_savings_transactions(3, "user1", "pwd")
+    result = await get_savings_transactions(3)
     assert result == {"transactions": []}
-    mock_get_auth_header.assert_called_once_with("user1", "pwd")
+    mock_get_auth_header.assert_called_once_with()
     mock_make_request.assert_called_once_with(
         "GET", "/self/savingsaccounts/3?associations=transactions", auth=mock_auth
     )
@@ -79,9 +79,9 @@ async def test_get_savings_transaction_details(mock_get_auth_header, mock_make_r
     mock_get_auth_header.return_value = mock_auth
     mock_make_request.return_value = {"id": 4}
 
-    result = await get_savings_transaction_details(3, 4, "user1", "pwd")
+    result = await get_savings_transaction_details(3, 4)
     assert result == {"id": 4}
-    mock_get_auth_header.assert_called_once_with("user1", "pwd")
+    mock_get_auth_header.assert_called_once_with()
     mock_make_request.assert_called_once_with("GET", "/self/savingsaccounts/3/transactions/4", auth=mock_auth)
 
 
@@ -92,9 +92,9 @@ async def test_get_savings_charges(mock_get_auth_header, mock_make_request, mock
     mock_get_auth_header.return_value = mock_auth
     mock_make_request.return_value = [{"id": 5}]
 
-    result = await get_savings_charges(3, "user1", "pwd")
+    result = await get_savings_charges(3)
     assert result == [{"id": 5}]
-    mock_get_auth_header.assert_called_once_with("user1", "pwd")
+    mock_get_auth_header.assert_called_once_with()
     mock_make_request.assert_called_once_with("GET", "/self/savingsaccounts/3/charges", auth=mock_auth)
 
 
@@ -105,9 +105,9 @@ async def test_get_savings_template_raw(mock_get_auth_header, mock_make_request,
     mock_get_auth_header.return_value = mock_auth
     mock_make_request.return_value = {"template": True}
 
-    result = await get_savings_template_raw(1, 2, "user1", "pwd")
+    result = await get_savings_template_raw(1, 2)
     assert result == {"template": True}
-    mock_get_auth_header.assert_called_once_with("user1", "pwd")
+    mock_get_auth_header.assert_called_once_with()
     mock_make_request.assert_called_once_with(
         "GET", "/self/savingsaccounts/template?clientId=1&productId=2", auth=mock_auth
     )
@@ -121,9 +121,9 @@ async def test_submit_savings_application(mock_get_auth_header, mock_make_reques
     mock_make_request.return_value = {"resourceId": 10}
     data = {"amount": 1000}
 
-    result = await submit_savings_application(data, "user1", "pwd")
+    result = await submit_savings_application(data)
     assert result == {"resourceId": 10}
-    mock_get_auth_header.assert_called_once_with("user1", "pwd")
+    mock_get_auth_header.assert_called_once_with()
     mock_make_request.assert_called_once_with("POST", "/self/savingsaccounts", auth=mock_auth, data=data)
 
 
@@ -135,7 +135,7 @@ async def test_update_savings_application(mock_get_auth_header, mock_make_reques
     mock_make_request.return_value = {"resourceId": 10}
     data = {"amount": 2000}
 
-    result = await update_savings_application(10, data, "user1", "pwd")
+    result = await update_savings_application(10, data)
     assert result == {"resourceId": 10}
-    mock_get_auth_header.assert_called_once_with("user1", "pwd")
+    mock_get_auth_header.assert_called_once_with()
     mock_make_request.assert_called_once_with("PUT", "/self/savingsaccounts/10", auth=mock_auth, data=data)

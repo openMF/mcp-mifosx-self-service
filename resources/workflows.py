@@ -7,17 +7,19 @@ async def get_workflows() -> str:
     return """
     # Sample Workflows
 
+    Tools do not take a username or password. After login, every tool uses the saved session.
+
     ## 1. New User Registration
     ```
     1. Call register_self_service with user details
     2. User receives authentication token via email
     3. Call confirm_registration with request_id and token
-    4. User can now login with credentials
+    4. User can now log in
     ```
 
     ## 2. View Account Information
     ```
-    1. Call login_self_service to authenticate
+    1. Call login once (skip if the server has MIFOS_USERNAME / MIFOS_PASSWORD set)
     2. Call get_client_info to get client ID
     3. Call get_client_accounts with client ID
     4. Call get_client_transactions for transaction history
@@ -25,7 +27,7 @@ async def get_workflows() -> str:
 
     ## 3. Setup and Make Transfer
     ```
-    1. Login with credentials
+    1. Call login once (skip if the server has MIFOS_USERNAME / MIFOS_PASSWORD set)
     2. Call add_beneficiary to add recipient
     3. Call get_transfer_template for transfer options
     4. Call make_third_party_transfer with details
@@ -33,7 +35,7 @@ async def get_workflows() -> str:
 
     ## 4. Manage Beneficiaries
     ```
-    1. Login with credentials
+    1. Call login once (skip if the server has MIFOS_USERNAME / MIFOS_PASSWORD set)
     2. Call get_beneficiaries to list all
     3. Call update_beneficiary to modify limits
     4. Call delete_beneficiary to remove

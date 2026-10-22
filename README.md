@@ -106,7 +106,21 @@ The application connects to a Fineract API. Use environment variables (or a `.en
 | `MIFOS_BASE_URL` | Base URL of Fineract instance | `https://tt.mifos.community` |
 | `MIFOS_TENANT` | Tenant identifier | `default` |
 
-For authentication, the application uses default credentials (`maria`/`password`), but these can be overridden using environment variables for better security and flexibility.
+| `MIFOS_USERNAME` | Self-service username (optional, see below) | none |
+| `MIFOS_PASSWORD` | Self-service password (optional, see below) | none |
+
+### Authentication
+
+Tools do not take a username or password. The server keeps the login itself, so the AI never sees the
+password or the access token. There are two ways to log in:
+
+1. **Recommended:** set `MIFOS_USERNAME` and `MIFOS_PASSWORD` in the server environment (for example in the
+   `env` block of the Claude Desktop config). Tools work right away, and the password never goes through the chat.
+2. Ask the assistant to call the `login` tool. The server keeps the access token from Fineract and returns the
+   login details without the token. Use `logout` to end the session.
+
+The session lives in the server process. This is safe for the default stdio transport (one server per user);
+do not share one server between several users.
 
 ## Running with Docker
 
@@ -131,7 +145,9 @@ docker-compose up --build
       ],
       "env": {
         "MIFOS_BASE_URL": "https://tt.mifos.community",
-        "MIFOS_TENANT": "default"
+        "MIFOS_TENANT": "default",
+        "MIFOS_USERNAME": "your-username",
+        "MIFOS_PASSWORD": "your-password"
       }
     }
   }
@@ -152,7 +168,7 @@ python3 main.py
 Once the MCP server is connected, Claude can invoke the available tools automatically.
 You can paste the following prompts in Claude Desktop to verify that your configuration is working correctly:
 
-- Login using username `maria` and password `password`
+- Log in (only needed if `MIFOS_USERNAME` / `MIFOS_PASSWORD` are not set)
 - Get my client information
 - Show my client accounts
 - List my beneficiaries
@@ -173,7 +189,8 @@ These tools are invoked by MCP-compatible AI clients, not directly via HTTP.
 |--------|----------------------------|------------------------------------------|
 | POST   | `register_self_service`    | Register a new self-service user          |
 | POST   | `confirm_registration`     | Confirm user registration with token     |
-| POST   | `login_self_service`       | Authenticate a self-service user          |
+| POST   | `login`                    | Log in and keep the session in the server |
+| POST   | `logout`                   | End the session                           |
 
 ### Client & Accounts
 
