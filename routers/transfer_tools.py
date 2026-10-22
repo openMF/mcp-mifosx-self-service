@@ -2,6 +2,17 @@ from mcp_app import mcp
 from typing import Dict, Any
 from utils.http import make_request
 from utils.auth import get_auth_header
+from utils.stepup import resolve_step_up
+
+TRANSFER_PATH = "/self/accounttransfers"
+THIRD_PARTY_TRANSFER_PATH = "/self/accounttransfers?type=tpt"
+
+
+async def _post_transfer(endpoint: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    """POST a transfer. If the bank asks for a verification code, confirm it with the user first."""
+    auth = get_auth_header()
+    result = await make_request("POST", endpoint, auth=auth, data=data)
+    return await resolve_step_up(result, "POST", endpoint, auth=auth, data=data)
 
 
 @mcp.tool(name="transfer_to_third_party_template")
@@ -13,16 +24,20 @@ async def get_transfer_template() -> Dict[str, Any]:
 
 @mcp.tool(name="transfer_between_accounts")
 async def transfer_between_accounts(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Transfer Between Accounts - Executes a transfer between accounts."""
-    auth = get_auth_header()
-    return await make_request("POST", "/self/accounttransfers", auth=auth, data=data)
+    """Transfer Between Accounts - Executes a transfer between accounts.
+
+    May ask the user for a one-time verification code. The user types it, never you.
+    """
+    return await _post_transfer(TRANSFER_PATH, data)
 
 
 @mcp.tool(name="transfer_to_third_party")
 async def transfer_third_party(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Transfer to Third Party - Executes a third-party transfer."""
-    auth = get_auth_header()
-    return await make_request("POST", "/self/accounttransfers?type=tpt", auth=auth, data=data)
+    """Transfer to Third Party - Executes a third-party transfer.
+
+    May ask the user for a one-time verification code. The user types it, never you.
+    """
+    return await _post_transfer(THIRD_PARTY_TRANSFER_PATH, data)
 
 
 @mcp.tool(name="get_account_transfer_template")
@@ -43,13 +58,17 @@ async def get_third_party_transfer_template() -> Dict[str, Any]:
 
 @mcp.tool(name="make_third_party_transfer")
 async def make_third_party_transfer(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Make Third Party Transfer - Executes a third-party transfer."""
-    auth = get_auth_header()
-    return await make_request("POST", "/self/accounttransfers?type=tpt", auth=auth, data=data)
+    """Make Third Party Transfer - Executes a third-party transfer.
+
+    May ask the user for a one-time verification code. The user types it, never you.
+    """
+    return await _post_transfer(THIRD_PARTY_TRANSFER_PATH, data)
 
 
 @mcp.tool(name="make_account_transfer")
 async def make_account_transfer(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Make Account Transfer - Executes a transfer between accounts."""
-    auth = get_auth_header()
-    return await make_request("POST", "/self/accounttransfers", auth=auth, data=data)
+    """Make Account Transfer - Executes a transfer between accounts.
+
+    May ask the user for a one-time verification code. The user types it, never you.
+    """
+    return await _post_transfer(TRANSFER_PATH, data)
