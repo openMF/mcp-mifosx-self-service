@@ -209,7 +209,10 @@ async def resolve_step_up(
 
     Call it with the answer of the first attempt of a sensitive request, which is sent without a token.
     """
-    if step_up_code(result) != "required":
+    code = step_up_code(result)
+    if code == "session.required":
+        return _session_failure(result)
+    if code != "required":
         return result
     action = _body(result).get("action")
     if action not in PAYLOAD_FIELDS:
@@ -255,15 +258,19 @@ async def resolve_step_up(
     return _remember_and_ask(challenge, method, endpoint, data, action, summary)
 
 
+def _session_failure(result: Dict[str, Any]) -> Dict[str, Any]:
+    return _api_failure(
+        result,
+        "Verification needs a login session. Call the login tool first: the credentials in the "
+        "server environment are not enough for this step.",
+        step_up_required=True,
+        executed=False,
+    )
+
+
 def _challenge_failure(challenge: Dict[str, Any]) -> Dict[str, Any]:
     if step_up_code(challenge) == "session.required":
-        return _api_failure(
-            challenge,
-            "Verification needs a login session. Call the login tool first: the credentials in the "
-            "server environment are not enough for this step.",
-            step_up_required=True,
-            executed=False,
-        )
+        return _session_failure(challenge)
     return _api_failure(challenge, "Could not start the verification.", step_up_required=True, executed=False)
 
 

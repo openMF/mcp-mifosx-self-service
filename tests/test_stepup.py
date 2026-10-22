@@ -96,6 +96,19 @@ async def test_results_that_do_not_ask_for_step_up_pass_through_untouched(result
     assert api.calls == []
 
 
+@pytest.mark.asyncio
+async def test_a_transfer_without_a_login_session_says_to_log_in_and_sends_no_code():
+    api = standard_api()
+    with patch("utils.stepup.make_request", api):
+        result = await resolve_step_up(
+            api_error("session.required"), "POST", "/self/accounttransfers?type=tpt", auth=AUTH, data=TRANSFER
+        )
+    assert result["error"] is True and result["executed"] is False
+    assert result["code"] == "session.required"
+    assert "login tool" in result["message"]
+    assert api.calls == []
+
+
 # --- chat fallback ------------------------------------------------------------------------------
 
 
