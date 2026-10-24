@@ -39,10 +39,10 @@ async def test_get_loan_product_details(mock_get_auth_header, mock_make_request,
     mock_get_auth_header.return_value = mock_auth
     mock_make_request.return_value = {"id": 2}
 
-    result = await get_loan_product_details(1, 2)
+    result = await get_loan_product_details(2)
     assert result == {"id": 2}
     mock_get_auth_header.assert_called_once_with()
-    mock_make_request.assert_called_once_with("GET", "/self/loanproducts?clientId=1&productId=2", auth=mock_auth)
+    mock_make_request.assert_called_once_with("GET", "/self/loanproducts/2", auth=mock_auth)
 
 
 @pytest.mark.asyncio

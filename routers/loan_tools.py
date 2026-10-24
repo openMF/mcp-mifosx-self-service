@@ -16,12 +16,12 @@ async def get_loan_products(client_id: int) -> Dict[str, Any]:
 
 
 @mcp.tool(name="get_loan_product_details")
-async def get_loan_product_details(client_id: int, product_id: int) -> Dict[str, Any]:
-    """Retrieve loan product details."""
+async def get_loan_product_details(product_id: int) -> Dict[str, Any]:
+    """Retrieve the details of one loan product."""
     auth = get_auth_header()
     return await make_request(
         "GET",
-        f"/self/loanproducts?clientId={client_id}&productId={product_id}",
+        f"/self/loanproducts/{product_id}",
         auth=auth,
     )
 
