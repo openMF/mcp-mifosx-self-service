@@ -308,6 +308,14 @@ These tools are invoked by MCP-compatible AI clients, not directly via HTTP.
 | POST   | `verify_step_up`              | Give the code the user received to the operation that waits for it (clients without elicitation) |
 | POST   | `resend_step_up`              | Send the code again |
 
+## MCP Marketplace
+
+This server can be discovered on MCP marketplaces. See [MARKETPLACE.md](MARKETPLACE.md) for the full list of listings and submission instructions.
+
+| Marketplace | Reference (sister project) |
+|---|---|
+| Glama | [openMF/mcp-mifosx](https://glama.ai/mcp/servers/openMF/mcp-mifosx) |
+
 ## License
 
 This project is licensed under the terms included in the LICENSE file.

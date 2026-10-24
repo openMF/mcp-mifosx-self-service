@@ -1,0 +1,50 @@
+{
+  "serverInfo": {
+    "name": "Mifos X Self-Service MCP Server",
+    "version": "1.0.0",
+    "description": "MCP server for the Apache Fineract / Mifos X Self-Service API. Provides 57 AI-callable tools for mobile banking workflows including authentication, client management, loans, savings, beneficiaries, transfers, guarantors, shares, and notifications.",
+    "homepage": "https://github.com/openMF/mcp-mifosx-self-service",
+    "repository": "https://github.com/openMF/mcp-mifosx-self-service",
+    "license": "MPL-2.0",
+    "author": {
+      "name": "Mifos Initiative",
+      "url": "https://mifos.org"
+    },
+    "categories": ["Finance", "Banking", "Microfinance"],
+    "tags": ["fineract", "mifos", "banking", "self-service", "loans", "savings", "microfinance"]
+  },
+  "capabilities": {
+    "tools": true,
+    "resources": true,
+    "prompts": false
+  },
+  "authentication": {
+    "required": false,
+    "description": "Authentication is handled per-tool via Fineract self-service credentials (username/password) passed as tool parameters."
+  },
+  "configuration": {
+    "type": "object",
+    "properties": {
+      "MIFOS_BASE_URL": {
+        "type": "string",
+        "description": "Base URL of the Fineract instance",
+        "default": "https://tt.mifos.community"
+      },
+      "MIFOS_TENANT": {
+        "type": "string",
+        "description": "Tenant identifier for multi-tenant Fineract deployments",
+        "default": "default"
+      }
+    }
+  },
+  "transport": {
+    "stdio": {
+      "command": "python",
+      "args": ["main.py"],
+      "env": {
+        "MIFOS_BASE_URL": "https://tt.mifos.community",
+        "MIFOS_TENANT": "default"
+      }
+    }
+  }
+}
