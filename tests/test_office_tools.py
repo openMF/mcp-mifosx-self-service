@@ -66,3 +66,18 @@ async def test_list_tools_return_lists_through_mcp(mock_get_auth_header, mock_ma
     assert [office["id"] for office in structured["result"]] == [1, 2]
     _, structured = await main.mcp.call_tool("get_office_services", {"office_id": 1})
     assert len(structured["result"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_office_tools_are_marked_read_only():
+    import main
+
+    tools = {tool.name: tool for tool in await main.mcp.list_tools()}
+    for name in (
+        "get_offices",
+        "get_office_details",
+        "get_office_services",
+        "get_office_address",
+        "get_office_geolocation",
+    ):
+        assert tools[name].annotations.readOnlyHint is True, name
