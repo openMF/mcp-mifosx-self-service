@@ -12,7 +12,7 @@ async def get_shares_products(client_id: int) -> Dict[str, Any]:
 
 
 @mcp.tool(name="get_share_product_details")
-async def get_shares_product_details(client_id: int, product_id: int) -> Dict[str, Any]:
-    """Get Share Product Details"""
+async def get_shares_product_details(product_id: int) -> Dict[str, Any]:
+    """Get the details of one share product."""
     auth = get_auth_header()
-    return await make_request("GET", f"/self/products/share?clientId={client_id}&productId={product_id}", auth=auth)
+    return await make_request("GET", f"/self/products/share/{product_id}", auth=auth)
