@@ -303,6 +303,8 @@ These tools are invoked by MCP-compatible AI clients, not directly via HTTP.
 | Method | MCP Tool Name                  | Description                              |
 |--------|--------------------------------|------------------------------------------|
 | GET    | `get_transfer_template`        | Retrieve transfer options                |
+| GET    | `get_transfer_fees`            | List the bank's transfer fee rules (filter by type and currency) |
+| POST   | `get_transfer_quote`           | Ask the bank for the exact fee and total of a transfer (moves no money) |
 | POST   | `make_third_party_transfer`   | Perform a third-party account transfer (may ask for a one-time code) |
 | POST   | `transfer_between_accounts`   | Transfer between your own accounts (may ask for a one-time code) |
 | POST   | `verify_step_up`              | Give the code the user received to the operation that waits for it (clients without elicitation) |
