@@ -31,10 +31,10 @@ async def test_get_share_product_details(mock_get_auth_header, mock_make_request
     mock_get_auth_header.return_value = mock_auth
     mock_make_request.return_value = {"id": 2, "name": "Share Product B", "totalShares": 500}
 
-    result = await get_shares_product_details(1, 2)
+    result = await get_shares_product_details(2)
     assert result == {"id": 2, "name": "Share Product B", "totalShares": 500}
     mock_get_auth_header.assert_called_once_with()
-    mock_make_request.assert_called_once_with("GET", "/self/products/share?clientId=1&productId=2", auth=mock_auth)
+    mock_make_request.assert_called_once_with("GET", "/self/products/share/2", auth=mock_auth)
 
 
 @pytest.mark.asyncio
@@ -68,6 +68,7 @@ async def test_get_share_product_details_not_found(mock_get_auth_header, mock_ma
     mock_get_auth_header.return_value = mock_auth
     mock_make_request.return_value = {"error": True, "status_code": 404, "message": "Share product not found"}
 
-    result = await get_shares_product_details(1, 999)
+    result = await get_shares_product_details(999)
     assert result["error"] is True
     assert result["status_code"] == 404
+    mock_make_request.assert_called_once_with("GET", "/self/products/share/999", auth=mock_auth)
