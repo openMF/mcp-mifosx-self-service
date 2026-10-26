@@ -19,6 +19,13 @@ async def get_overview() -> str:
     - List all accounts (savings, loans)
     - View account charges
     - View transaction history
+
+    ## Statements & Insights
+    - Date- and direction-filtered account statement (newest first, paged)
+    - Spending summary: money in / money out, monthly buckets, per-type breakdown
+    - Recurring payments: same-amount, evenly-spaced debits such as subscriptions
+    - All computed by this server from the bank's own transaction rows; rows whose
+      type cannot be classified are labelled "unknown", never guessed
     
     ## Beneficiary Management
     - Add beneficiaries for third-party transfers

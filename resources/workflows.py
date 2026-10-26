@@ -42,4 +42,16 @@ async def get_workflows() -> str:
     3. Call update_beneficiary to modify limits
     4. Call delete_beneficiary to remove
     ```
+
+    ## 5. Review a Statement and Spending Habits
+    ```
+    1. Call login once (skip if the server has MIFOS_USERNAME / MIFOS_PASSWORD set)
+    2. Call get_client_info to get client ID
+    3. Call get_client_accounts to get the savings account ID
+    4. Call get_account_statement for the period the user asked about
+       (from_date / to_date, direction debit|credit)
+    5. Call get_spending_summary for totals and monthly buckets
+    6. Call find_recurring_payments for subscriptions and instalments
+    7. Report the "unknown" figures honestly instead of folding them into spending
+    ```
     """
