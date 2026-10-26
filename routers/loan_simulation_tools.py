@@ -81,7 +81,9 @@ async def simulate_loan(
             "message": f"Loan product {product_id} is not available for simulation.",
         }
 
-    repayments = number_of_repayments or product.get("numberOfRepayments")
+    repayments = number_of_repayments if number_of_repayments is not None else product.get("numberOfRepayments")
+    if not repayments or repayments < 1:
+        return {"error": True, "status_code": 400, "message": "The number of repayments must be at least 1."}
     problem = _outside_limits("principal", principal, product.get("minPrincipal"), product.get("maxPrincipal"))
     problem = problem or _outside_limits(
         "number of repayments", repayments, product.get("minNumberOfRepayments"), product.get("maxNumberOfRepayments")

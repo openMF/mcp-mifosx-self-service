@@ -137,3 +137,12 @@ async def test_simulation_tools_through_mcp():
     with patch("routers.loan_simulation_tools.make_request", new=responses([PRODUCT, PRODUCT])):
         _, structured = await main.mcp.call_tool("get_loan_simulation_products", {})
     assert len(structured["result"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_simulate_loan_rejects_zero_repayments():
+    product = {**PRODUCT, "minNumberOfRepayments": None}
+    with patch("routers.loan_simulation_tools.make_request", new=responses([product])) as mock:
+        result = await simulate_loan(2, 50000, number_of_repayments=0)
+    assert result == {"error": True, "status_code": 400, "message": "The number of repayments must be at least 1."}
+    mock.assert_called_once()
