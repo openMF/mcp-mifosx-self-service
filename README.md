@@ -312,6 +312,16 @@ see the "Honest limits" line in each tool's description.
 | POST   | `register_for_notifications`  | Register device for push notifications   |
 | PUT    | `update_notification_registration` | Update notification registration     |
 
+### Offices
+
+| Method | MCP Tool Name              | Description                                   |
+|--------|----------------------------|-----------------------------------------------|
+| GET    | `get_offices`              | List the bank's offices (branches)            |
+| GET    | `get_office_details`       | Details of one office                         |
+| GET    | `get_office_services`      | Services an office offers, with working hours |
+| GET    | `get_office_address`       | Street address of an office                   |
+| GET    | `get_office_geolocation`   | Map location of an office                     |
+
 ### Transfers
 
 | Method | MCP Tool Name                  | Description                              |
