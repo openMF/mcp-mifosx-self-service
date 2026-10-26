@@ -17,6 +17,7 @@ This project enables AI-driven banking workflows such as authentication, account
 *   Manage savings accounts (products, applications, transactions, charges).
 *   Manage guarantors for loans.
 *   Manage share accounts and products.
+*   Read account statements and spending insights (statement, summary, recurring payments).
 *   Register for push notifications.
 *   Perform third-party account transfers.
 
@@ -52,6 +53,7 @@ mcp-mifosx-self-service/
 │   ├── transfer_tools.py   # Third-party transfers
 │   ├── loan_tools.py        # Loan products & accounts
 │   ├── savings_tools.py     # Savings accounts & products
+│   ├── statement_tools.py   # Statements, spending summary, recurring payments
 │   ├── guarantor_tools.py  # Loan guarantor management
 │   ├── shares_tools.py     # Share accounts & products
 │   └── notification_tools.py # Push notification registration
@@ -273,6 +275,18 @@ These tools are invoked by MCP-compatible AI clients, not directly via HTTP.
 | POST   | `submit_savings_application`     | Submit savings account application       |
 | PUT    | `update_savings_account_application` | Update savings account application    |
 
+### Statements & Insights
+
+Read-only tools that reshape a savings account's own transaction list into a statement
+and spending picture. Everything is computed by the MCP server from the bank's rows —
+see the "Honest limits" line in each tool's description.
+
+| Method | MCP Tool Name              | Description                              |
+|--------|----------------------------|------------------------------------------|
+| GET    | `get_account_statement`    | Date- and direction-filtered statement of one savings account (paged, newest first) |
+| GET    | `get_spending_summary`     | Money in / money out totals, monthly buckets and per-type breakdown |
+| GET    | `find_recurring_payments`  | Same-amount, evenly-spaced debits (subscriptions, instalments) |
+
 ### Guarantors
 
 | Method | MCP Tool Name              | Description                              |
@@ -297,6 +311,16 @@ These tools are invoked by MCP-compatible AI clients, not directly via HTTP.
 | GET    | `get_user_notification_details` | Get notification registration details  |
 | POST   | `register_for_notifications`  | Register device for push notifications   |
 | PUT    | `update_notification_registration` | Update notification registration     |
+
+### Offices
+
+| Method | MCP Tool Name              | Description                                   |
+|--------|----------------------------|-----------------------------------------------|
+| GET    | `get_offices`              | List the bank's offices (branches)            |
+| GET    | `get_office_details`       | Details of one office                         |
+| GET    | `get_office_services`      | Services an office offers, with working hours |
+| GET    | `get_office_address`       | Street address of an office                   |
+| GET    | `get_office_geolocation`   | Map location of an office                     |
 
 ### Transfers
 

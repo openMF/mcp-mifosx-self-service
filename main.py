@@ -9,9 +9,11 @@ import routers.transfer_tools  # noqa: F401
 import routers.stepup_tools  # noqa: F401
 import routers.loan_tools  # noqa: F401
 import routers.savings_tools  # noqa: F401
+import routers.statement_tools  # noqa: F401
 import routers.guarantor_tools  # noqa: F401
 import routers.shares_tools  # noqa: F401
 import routers.notification_tools  # noqa: F401
+import routers.office_tools  # noqa: F401
 
 # Register MCP resources
 import resources.overview  # noqa: F401
