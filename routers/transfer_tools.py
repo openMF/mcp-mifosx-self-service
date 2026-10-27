@@ -242,14 +242,17 @@ async def prepare_transfer(
 
 
 async def _person_confirms(prepared: transfers.PreparedTransfer) -> Optional[bool]:
-    """Ask the person in the client's form. ``None`` means the client cannot show a form."""
+    """Ask the person in the client's form. ``None`` means the client cannot show a form.
+
+    A client that offers forms but fails to show this one counts as "not confirmed": no money moves.
+    """
     ctx = stepup._elicitation_context()
     if ctx is None:
         return None
     try:
         answer = await ctx.elicit(message=f"Send this {prepared.text}?", schema=transfers.ConfirmTransferForm)
     except Exception:
-        return None
+        return False
     return getattr(answer, "action", None) == "accept" and bool(getattr(answer.data, "confirm", False))
 
 

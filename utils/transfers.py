@@ -94,9 +94,10 @@ def max_amount() -> Optional[Decimal]:
     if not raw:
         return None
     try:
-        return Decimal(raw)
+        limit = Decimal(raw)
     except InvalidOperation:
         return Decimal(0)
+    return limit if limit.is_finite() else Decimal(0)
 
 
 def today() -> date:

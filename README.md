@@ -142,7 +142,7 @@ The assistant cannot move money in one call. Every transfer takes two tools:
    cannot change the accounts or the amount in between. The id works **once** and expires after
    `MIFOS_TRANSFER_CONFIRM_TTL_SECONDS` (5 minutes by default; at most 5 prepared transfers are kept). If your client
    supports MCP elicitation, it also shows you a form ("Send this ... ?") and nothing is sent unless you confirm
-   there. If the bank asks for a one-time code, the confirmation continues as described below.
+   there (if the form cannot be shown, nothing is sent either). If the bank asks for a one-time code, the confirmation continues as described below.
 
 `cancel_transfer(confirmation_id)` drops a prepared transfer.
 

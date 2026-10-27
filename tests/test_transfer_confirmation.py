@@ -147,8 +147,9 @@ async def test_amounts_above_the_operator_limit_are_refused(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_a_limit_that_is_not_a_number_refuses_every_transfer(monkeypatch):
-    monkeypatch.setenv(transfers.MAX_AMOUNT_ENV, "lots")
+@pytest.mark.parametrize("value", ["lots", "NaN", "Infinity", "-Infinity"])
+async def test_a_limit_that_is_not_a_number_refuses_every_transfer(monkeypatch, value):
+    monkeypatch.setenv(transfers.MAX_AMOUNT_ENV, value)
     result = await prepare_tpt(bank(), amount=1)
     assert result["limit_exceeded"] is True
 
@@ -259,12 +260,13 @@ async def test_declining_the_form_sends_nothing_and_uses_up_the_id(reply):
 
 
 @pytest.mark.asyncio
-async def test_a_client_whose_form_fails_relies_on_the_chat_confirmation():
+async def test_a_client_whose_form_fails_sends_nothing():
     api = bank()
     prepared = await prepare_tpt(api)
     broken = SimpleNamespace(elicit=AsyncMock(side_effect=RuntimeError("no form")))
-    done = await run(api, lambda: confirm_transfer(prepared["confirmation_id"]), broken)
-    assert done["executed"] is True
+    result = await run(api, lambda: confirm_transfer(prepared["confirmation_id"]), broken)
+    assert result["cancelled"] is True and result["executed"] is False
+    assert api.calls_to("POST", "/self/accounttransfers?type=tpt") == []
 
 
 # --- with the bank's one-time code (step-up) -----------------------------------------------------
