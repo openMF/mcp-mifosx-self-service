@@ -112,6 +112,9 @@ The application connects to a Fineract API. Use environment variables (or a `.en
 | `MIFOS_PASSWORD` | Self-service password (optional, see below) | none |
 | `MIFOS_STEP_UP_CHANNEL` | `EMAIL` or `SMS`: where the verification code is sent (see below) | first channel the bank offers |
 | `MIFOS_STEP_UP_ALLOW_CHAT_OTP` | `false` to forbid typing the code in the chat (see below) | `true` |
+| `MIFOS_TRANSFER_MAX_AMOUNT` | Largest transfer the assistant may prepare; larger ones must be made in the bank's app | no limit |
+| `MIFOS_TRANSFER_CONFIRM_TTL_SECONDS` | How long a prepared transfer can be confirmed | `300` |
+| `MIFOS_TIMEZONE` | The bank's time zone (e.g. `America/Mexico_City`), used for the transfer date | server's time zone |
 
 ### Authentication
 
@@ -126,12 +129,29 @@ password or the access token. There are two ways to log in:
 The session lives in the server process. This is safe for the default stdio transport (one server per user);
 do not share one server between several users.
 
+## Transfers: prepare, then confirm
+
+The assistant cannot move money in one call. Every transfer takes two tools:
+
+1. `prepare_transfer(from_account_id, to_account_id, amount, description, ...)` moves no money. It checks that the
+   source is one of your accounts and that the destination is one of your own accounts (for example a loan, for a
+   repayment) or, with `third_party: true`, one of your saved beneficiaries. It checks the amount against
+   `MIFOS_TRANSFER_MAX_AMOUNT` and the available balance, and returns a summary (accounts, amount, currency, fee)
+   with a `confirmation_id`. The assistant shows you the summary and asks you to confirm.
+2. `confirm_transfer(confirmation_id)` sends exactly the request that was prepared. The server keeps it, so the AI
+   cannot change the accounts or the amount in between. The id works **once** and expires after
+   `MIFOS_TRANSFER_CONFIRM_TTL_SECONDS` (5 minutes by default; at most 5 prepared transfers are kept). If your client
+   supports MCP elicitation, it also shows you a form ("Send this ... ?") and nothing is sent unless you confirm
+   there. If the bank asks for a one-time code, the confirmation continues as described below.
+
+`cancel_transfer(confirmation_id)` drops a prepared transfer.
+
 ## Human-in-the-loop confirmation for sensitive tools
 
 When the bank has step-up authentication turned on (selfservice-plugin, MX-488), some operations need a
 one-time code that the **account owner** receives by e-mail or SMS: third-party transfers, transfers between
-your own accounts, and password changes (`transfer_to_third_party`, `make_third_party_transfer`,
-`transfer_between_accounts`, `make_account_transfer`, `update_account_password`). All other tools are unchanged.
+your own accounts, and password changes (`confirm_transfer`, `update_account_password`). All other tools are
+unchanged.
 
 The AI never sees the code or the one-time token the bank returns for it. The server asks for the code like this:
 
@@ -326,11 +346,13 @@ see the "Honest limits" line in each tool's description.
 
 | Method | MCP Tool Name                  | Description                              |
 |--------|--------------------------------|------------------------------------------|
-| GET    | `get_transfer_template`        | Retrieve transfer options                |
+| GET    | `get_account_transfer_template` | Accounts you can transfer between       |
+| GET    | `get_third_party_transfer_template` | Your accounts and saved beneficiaries for third-party transfers |
 | GET    | `get_transfer_fees`            | List the bank's transfer fee rules (filter by type and currency) |
 | POST   | `get_transfer_quote`           | Ask the bank for the exact fee and total of a transfer (moves no money) |
-| POST   | `make_third_party_transfer`   | Perform a third-party account transfer (may ask for a one-time code) |
-| POST   | `transfer_between_accounts`   | Transfer between your own accounts (may ask for a one-time code) |
+| -      | `prepare_transfer`            | Step 1: check a transfer and get a summary and a `confirmation_id` (moves no money) |
+| POST   | `confirm_transfer`            | Step 2: send the prepared transfer once, after the user confirmed (may ask for a one-time code) |
+| -      | `cancel_transfer`             | Drop a prepared transfer |
 | POST   | `verify_step_up`              | Give the code the user received to the operation that waits for it (clients without elicitation) |
 | POST   | `resend_step_up`              | Send the code again |
 
