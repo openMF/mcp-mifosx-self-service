@@ -146,6 +146,11 @@ The assistant cannot move money in one call. Every transfer takes two tools:
 
 `cancel_transfer(confirmation_id)` drops a prepared transfer.
 
+Applying for shares works the same way: `prepare_share_application` (checks the product's share limits and that
+the linked savings account is the client's, active and in the product's currency, and returns the total price),
+then `confirm_share_application` or `cancel_share_application`. A share confirmation id cannot confirm a
+transfer, and the other way round. The bank still has to approve the application.
+
 ## Human-in-the-loop confirmation for sensitive tools
 
 When the bank has step-up authentication turned on (selfservice-plugin, MX-488), some operations need a
@@ -323,6 +328,11 @@ see the "Honest limits" line in each tool's description.
 |--------|----------------------------|------------------------------------------|
 | GET    | `get_share_product_list`  | Get list of share products               |
 | GET    | `get_share_product_details` | Get share product details              |
+| GET    | `get_share_account_template` | Share products a client can apply for; with `product_id`, price and share limits |
+| GET    | `get_share_account`        | One share account or application        |
+| -      | `prepare_share_application` | Step 1: check an application for shares and get a summary and a `confirmation_id` (submits nothing) |
+| POST   | `confirm_share_application` | Step 2: submit the prepared application once, after the user confirmed |
+| -      | `cancel_share_application` | Drop a prepared application |
 
 ### Notifications
 

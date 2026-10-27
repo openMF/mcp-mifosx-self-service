@@ -63,6 +63,7 @@ class PreparedTransfer:
     summary: Dict[str, Any]
     text: str
     created: float
+    kind: str = "transfer"
 
 
 _prepared: "OrderedDict[str, PreparedTransfer]" = OrderedDict()
@@ -118,10 +119,12 @@ def format_date(value: date) -> str:
 # --- prepared transfers -----------------------------------------------------------------------
 
 
-def remember(endpoint: str, data: Dict[str, Any], summary: Dict[str, Any], text: str) -> PreparedTransfer:
+def remember(
+    endpoint: str, data: Dict[str, Any], summary: Dict[str, Any], text: str, kind: str = "transfer"
+) -> PreparedTransfer:
     _purge()
     prepared = PreparedTransfer(
-        secrets.token_urlsafe(9), endpoint, copy.deepcopy(data), summary, text, time.monotonic()
+        secrets.token_urlsafe(9), endpoint, copy.deepcopy(data), summary, text, time.monotonic(), kind
     )
     _prepared[prepared.confirmation_id] = prepared
     while len(_prepared) > MAX_PREPARED:
@@ -129,10 +132,13 @@ def remember(endpoint: str, data: Dict[str, Any], summary: Dict[str, Any], text:
     return prepared
 
 
-def take(confirmation_id: str) -> Optional[PreparedTransfer]:
-    """Remove and return a prepared transfer, so it can be used only once."""
+def take(confirmation_id: str, kind: str = "transfer") -> Optional[PreparedTransfer]:
+    """Remove and return a prepared operation of this kind, so it can be used only once."""
     _purge()
-    return _prepared.pop(confirmation_id, None)
+    prepared = _prepared.get(confirmation_id)
+    if prepared is None or prepared.kind != kind:
+        return None
+    return _prepared.pop(confirmation_id)
 
 
 def _purge() -> None:
@@ -140,3 +146,9 @@ def _purge() -> None:
     now = time.monotonic()
     for key in [k for k, v in _prepared.items() if now - v.created > limit]:
         del _prepared[key]
+
+
+class ConfirmApplicationForm(BaseModel):
+    """The form for applications (e.g. shares). Only a primitive field is allowed."""
+
+    confirm: bool = Field(title="Submit this application", description="Tick to submit the application")
