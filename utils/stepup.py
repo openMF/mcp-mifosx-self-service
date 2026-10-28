@@ -1,8 +1,9 @@
 """Step-up (one-time code) confirmation of sensitive operations.
 
 When the self-service API answers ``error.msg.selfservice.stepup.required`` the person who owns the
-account must confirm the operation with a one-time code sent to their phone or e-mail. This module
-runs that confirmation and then repeats the original request with the single-use step-up token.
+account must confirm the operation with a one-time code sent to their phone or e-mail, or shown by
+their authenticator app (channel ``TOTP``, when they paired one). This module runs that confirmation
+and then repeats the original request with the single-use step-up token.
 
 The AI never sees the code or the token:
 
@@ -11,6 +12,11 @@ The AI never sees the code or the token:
 * Otherwise the tool returns ``step_up_required`` and the person gives the code to the AI, which
   passes it to the ``verify_step_up`` tool. The code then passes through the chat, so an operator can
   forbid this fallback with ``MIFOS_STEP_UP_ALLOW_CHAT_OTP=false``.
+
+A recovery code of the authenticator app (for a lost phone) is only ever asked for in the elicitation
+form, never through the chat: it is a long-lived credential, unlike a code that is valid for seconds.
+Pairing or removing the authenticator is not offered as a tool at all: the secret must not pass through
+an AI conversation, so that stays in the bank's own app or website.
 
 The request that is repeated is the one that was approved: it is kept here, not taken from the AI
 again, and the server also binds the code to the accounts and the amount.
@@ -34,6 +40,8 @@ STEP_UP_HEADER = "X-Step-Up-Token"
 ERROR_PREFIX = "error.msg.selfservice.stepup."
 
 CHANNEL_ENV = "MIFOS_STEP_UP_CHANNEL"
+APP_CHANNEL = "TOTP"
+APP_CODE_LENGTH = 6
 ALLOW_CHAT_OTP_ENV = "MIFOS_STEP_UP_ALLOW_CHAT_OTP"
 
 # Fields of the request that the server binds the code to, per protected action (see the plugin's
@@ -58,6 +66,21 @@ class OtpForm(BaseModel):
     otp: str = Field(title="Verification code", description="The one-time code you received")
 
 
+class AppCodeForm(BaseModel):
+    """The form for an authenticator app: the code it shows now, or a recovery code (lost phone)."""
+
+    otp: str = Field(
+        default="",
+        title="Code from your authenticator app",
+        description="The 6-digit code your app shows now",
+    )
+    recovery_code: str = Field(
+        default="",
+        title="Recovery code",
+        description="Only if you lost your phone: one of the recovery codes you saved (each works once)",
+    )
+
+
 @dataclass
 class PendingStepUp:
     """An operation waiting for its code (chat fallback only)."""
@@ -69,6 +92,7 @@ class PendingStepUp:
     action: str
     summary: str
     created: float
+    channel: str = ""
 
 
 _pending: "OrderedDict[int, PendingStepUp]" = OrderedDict()
@@ -175,7 +199,10 @@ async def _choose_channel(auth: str) -> Tuple[Optional[str], Optional[Dict[str, 
             executed=False,
         )
     preferred = os.getenv(CHANNEL_ENV, "").strip().upper()
-    return (preferred if preferred in available else available[0]), None
+    if preferred in available:
+        return preferred, None
+    # The authenticator app is the safer way (nothing travels by SMS or e-mail): use it when paired.
+    return (APP_CHANNEL if APP_CHANNEL in available else available[0]), None
 
 
 # --- running the confirmation -----------------------------------------------------------------
@@ -292,14 +319,21 @@ async def _confirm_by_form(
 ) -> Optional[Dict[str, Any]]:
     """Ask the person for the code through the client. ``None`` means the form cannot be shown."""
     challenge_id = challenge["challengeId"]
+    app = challenge.get("channel") == APP_CHANNEL
     notice = ""
     for _ in range(MAX_ELICITATION_ROUNDS):
-        prompt = (
-            f"{notice}A verification code was sent to {challenge.get('maskedDestination', 'you')}. "
-            f"Enter it to confirm: {summary}."
-        )
+        if app:
+            prompt = (
+                f"{notice}Open your authenticator app and enter the {APP_CODE_LENGTH}-digit code it shows to "
+                f"confirm: {summary}. If you lost your phone, leave that empty and enter a recovery code."
+            )
+        else:
+            prompt = (
+                f"{notice}A verification code was sent to {challenge.get('maskedDestination', 'you')}. "
+                f"Enter it to confirm: {summary}."
+            )
         try:
-            answer = await ctx.elicit(message=prompt, schema=OtpForm)
+            answer = await ctx.elicit(message=prompt, schema=AppCodeForm if app else OtpForm)
         except Exception:
             return None
         if getattr(answer, "action", None) != "accept":
@@ -311,7 +345,13 @@ async def _confirm_by_form(
                 cancelled=True,
             )
         otp = answer.data.otp.strip()
-        verified = await make_request("POST", f"{CHALLENGES_PATH}/{challenge_id}/verify", auth=auth, data={"otp": otp})
+        recovery = getattr(answer.data, "recovery_code", "").strip()
+        if app and bool(otp) == bool(recovery):
+            # Nothing, or both: ask again without bothering the bank (and without a wrong attempt).
+            notice = "Enter the code of your app, or a recovery code, but not both. "
+            continue
+        body = {"recoveryCode": recovery} if app and recovery else {"otp": otp}
+        verified = await make_request("POST", f"{CHALLENGES_PATH}/{challenge_id}/verify", auth=auth, data=body)
         if not verified.get("error"):
             return await _send_verified(str(verified.get("stepUpToken", "")), method, endpoint, auth, data)
         if step_up_code(verified) == "otp.invalid":
@@ -327,6 +367,7 @@ def _verify_failure(verified: Dict[str, Any]) -> Dict[str, Any]:
     reasons = {
         "locked": "Too many incorrect codes. Try again later.",
         "otp.expired": "The code has expired. Repeat the operation to get a new one.",
+        "totp.not.enrolled": "The authenticator app is no longer active. Repeat the operation to start again.",
         "invalid": "This verification is no longer valid. Repeat the operation to start a new one.",
         "rate.limited": "Too many verification requests. Try again later.",
     }
@@ -350,11 +391,26 @@ def _remember_and_ask(
     _purge_pending()
     challenge_id = challenge["challengeId"]
     _pending[challenge_id] = PendingStepUp(
-        challenge_id, method, endpoint, copy.deepcopy(data), action, summary, time.monotonic()
+        challenge_id,
+        method,
+        endpoint,
+        copy.deepcopy(data),
+        action,
+        summary,
+        time.monotonic(),
+        str(challenge.get("channel", "")),
     )
     while len(_pending) > MAX_PENDING:
         _pending.popitem(last=False)
-    destination = challenge.get("maskedDestination", "the user")
+    if challenge.get("channel") == APP_CHANNEL:
+        where = (
+            "Nothing was sent: the code is the one the USER's authenticator app shows now. Ask the USER to open the "
+            f"app and read the {APP_CODE_LENGTH}-digit code to you"
+        )
+    else:
+        where = (
+            f"A one-time code was sent to {challenge.get('maskedDestination', 'the user')}. Ask the USER for the code"
+        )
     return {
         "step_up_required": True,
         "executed": False,
@@ -362,8 +418,8 @@ def _remember_and_ask(
         "summary": summary,
         **_challenge_view(challenge),
         "message": (
-            f"Verification needed before this can run. A one-time code was sent to {destination}. "
-            "Ask the USER for the code and then call verify_step_up with the challengeId and the code. "
+            f"Verification needed before this can run. {where}, "
+            "and then call verify_step_up with the challengeId and the code. "
             "Never guess, invent or reuse a code. "
             f"The code only approves this operation: {summary}. It has NOT been executed yet."
         ),
@@ -392,8 +448,20 @@ async def verify_pending(challenge_id: int, otp: str, *, auth: str) -> Dict[str,
     pending = _pending_for(challenge_id)
     if pending is None:
         return _failure(404, _UNKNOWN, executed=False)
+    code_text = otp.strip()
+    if pending.channel == APP_CHANNEL and not (code_text.isdigit() and len(code_text) == APP_CODE_LENGTH):
+        # Only the short-lived code of the app may pass through the chat; a recovery code may not.
+        # Nothing is sent to the bank, so this cannot use up an attempt.
+        return _failure(
+            400,
+            f"For an authenticator app the code is the {APP_CODE_LENGTH} digits the app shows now. "
+            "Recovery codes cannot be given in the chat: confirm in the bank's own app or website instead.",
+            step_up_required=True,
+            executed=False,
+            challengeId=challenge_id,
+        )
     verified = await make_request(
-        "POST", f"{CHALLENGES_PATH}/{challenge_id}/verify", auth=auth, data={"otp": otp.strip()}
+        "POST", f"{CHALLENGES_PATH}/{challenge_id}/verify", auth=auth, data={"otp": code_text}
     )
     if verified.get("error"):
         code = step_up_code(verified)
@@ -426,6 +494,15 @@ async def resend_pending(challenge_id: int, *, auth: str) -> Dict[str, Any]:
     pending = _pending_for(challenge_id)
     if pending is None:
         return _failure(404, _UNKNOWN, executed=False)
+    if pending.channel == APP_CHANNEL:
+        return _failure(
+            400,
+            "A code from an authenticator app cannot be sent again: ask the USER for the code the app shows now "
+            "and call verify_step_up.",
+            step_up_required=True,
+            executed=False,
+            challengeId=challenge_id,
+        )
     resent = await make_request("POST", f"{CHALLENGES_PATH}/{challenge_id}/resend", auth=auth)
     if resent.get("error"):
         return _api_failure(resent, "The code could not be sent again.", step_up_required=True, executed=False)

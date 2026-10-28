@@ -110,7 +110,7 @@ The application connects to a Fineract API. Use environment variables (or a `.en
 
 | `MIFOS_USERNAME` | Self-service username (optional, see below) | none |
 | `MIFOS_PASSWORD` | Self-service password (optional, see below) | none |
-| `MIFOS_STEP_UP_CHANNEL` | `EMAIL` or `SMS`: where the verification code is sent (see below) | first channel the bank offers |
+| `MIFOS_STEP_UP_CHANNEL` | `EMAIL`, `SMS` or `TOTP`: how the verification code reaches the user (see below) | the authenticator app if the user paired one, otherwise the first channel the bank offers |
 | `MIFOS_STEP_UP_ALLOW_CHAT_OTP` | `false` to forbid typing the code in the chat (see below) | `true` |
 
 ### Authentication
@@ -155,6 +155,23 @@ operation and run another. A waiting operation is kept in memory for 10 minutes 
 Step-up needs a login **session**: call `login`. Credentials from `MIFOS_USERNAME` / `MIFOS_PASSWORD` alone are
 not enough for this step (the bank answers `session.required` and the tool says so). `MIFOS_STEP_UP_CHANNEL` picks
 SMS or e-mail when the user has both; if that channel is not available the first one the bank offers is used.
+
+### Authenticator app
+
+If the bank also offers an **authenticator app** (Google Authenticator, Microsoft Authenticator...) and the user
+paired one, the verification uses it (channel `TOTP`): nothing is sent, the person types the 6-digit code the app
+shows now. By default the bank offers only the app to such a user (so an intercepted SMS is of no use), and this
+server then uses it without any setting.
+
+- **With elicitation** the form asks for "Code from your authenticator app" and, only for a lost phone, "Recovery
+  code" (one of the codes the user saved when pairing; each works once). The form takes one of the two. A wrong
+  code asks again, as before.
+- **Without elicitation** the chat fallback accepts only the 6-digit code of the app, which is valid for seconds
+  and for this one operation. A **recovery code is never accepted in the chat** (it is a long-lived credential);
+  the tool tells the user to use a client with elicitation or the bank's own app. `resend_step_up` does not apply:
+  an app code cannot be sent again.
+- **Pairing, new recovery codes and removing the app are not tools.** The secret and the recovery codes must not
+  pass through an AI conversation, so the user does that in the bank's own app or website.
 
 ## Running with Docker
 
