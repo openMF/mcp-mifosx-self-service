@@ -12,3 +12,9 @@ pytest-asyncio
 pytest-cov
 mypy
 pip-audit
+# CI runs `pip-audit -r requirements.txt`, so anything listed here is audited
+# directly. setuptools <83.0.0 trips PYSEC-2026-3447 (a MANIFEST.in exclusion
+# bypass that only bites when packing an sdist on macOS), which would fail that
+# gate. It does not affect this Linux service, but pinning >=83.0.0 is cheaper
+# than arguing with the audit on every runner.
+setuptools>=83.0.0

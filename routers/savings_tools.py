@@ -5,14 +5,14 @@ from utils.auth import get_auth_header
 
 
 @mcp.tool(name="get_savings_products")
-async def get_savings_products(client_id: int) -> Dict[str, Any]:
+async def get_savings_products(client_id: int) -> Any:
     """Get List of Savings Products"""
     auth = get_auth_header()
     return await make_request("GET", f"/self/savingsproducts?clientId={client_id}", auth=auth)
 
 
 @mcp.tool(name="get_savings_product_details")
-async def get_savings_product_details(product_id: int) -> Dict[str, Any]:
+async def get_savings_product_details(product_id: int) -> Any:
     """Get the details of one savings product."""
     auth = get_auth_header()
     return await make_request(
