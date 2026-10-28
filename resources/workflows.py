@@ -30,8 +30,9 @@ async def get_workflows() -> str:
     1. Call login once (skip if the server has MIFOS_USERNAME / MIFOS_PASSWORD set)
     2. Call create_beneficiary_savings (or create_beneficiary_loan) to add the recipient
     3. Call get_third_party_transfer_template to see the beneficiary accounts
-    4. Call make_third_party_transfer with details
-    5. If the bank needs a verification code, the user types it in the form the client shows. If the tool
+    4. Call prepare_transfer (third_party true) and show the user the summary it returns
+    5. Only after the user says yes, call confirm_transfer with the confirmation_id (cancel_transfer if not)
+    6. If the bank needs a verification code, the user types it in the form the client shows. If the tool
        answers step_up_required instead, ask the USER for the code and call verify_step_up
     ```
 

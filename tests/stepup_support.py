@@ -69,3 +69,61 @@ def standard_api(**overrides):
     }
     routes.update(overrides)
     return FakeApi(**routes)
+
+
+# --- two-step transfers (prepare_transfer / confirm_transfer) ------------------------------------
+
+
+def account_option(account_id, account_type=2, client_id=5, office_id=1, name="ANA LOPEZ"):
+    type_value = "Savings Account" if account_type == 2 else "Loan Account"
+    return {
+        "accountId": account_id,
+        "accountNo": f"{account_id:09d}",
+        "accountType": {"id": account_type, "value": type_value},
+        "clientId": client_id,
+        "clientName": name,
+        "officeId": office_id,
+        "officeName": "CENTRAL",
+    }
+
+
+OWN_TEMPLATE = {
+    "fromAccountOptions": [account_option(11), account_option(33, 1)],
+    "toAccountOptions": [account_option(11), account_option(33, 1)],
+}
+TPT_TEMPLATE = {
+    "fromAccountOptions": [account_option(11)],
+    "toAccountOptions": [account_option(22, client_id=9, office_id=2, name="LUIS MORA")],
+}
+SAVINGS_11 = {
+    "id": 11,
+    "currency": {"code": "USD"},
+    "summary": {"accountBalance": 500.0, "availableBalance": 500.0},
+    "withdrawalFeeForTransfers": False,
+}
+# What prepare_transfer(11 -> 22, 100.5, "rent", third_party=True) sends, apart from the date.
+TPT_SENT = {
+    "fromOfficeId": 1,
+    "fromClientId": 5,
+    "fromAccountType": 2,
+    "fromAccountId": 11,
+    "toOfficeId": 2,
+    "toClientId": 9,
+    "toAccountType": 2,
+    "toAccountId": 22,
+    "transferAmount": 100.5,
+    "transferDescription": "rent",
+    "dateFormat": "dd MMMM yyyy",
+    "locale": "en",
+}
+
+
+def bank_routes(**overrides):
+    """Template and account answers that prepare_transfer reads, plus the step-up routes."""
+    routes = {
+        "GET /self/accounttransfers/template": OWN_TEMPLATE,
+        "GET /self/accounttransfers/template?type=tpt": TPT_TEMPLATE,
+        "GET /self/savingsaccounts/11": SAVINGS_11,
+    }
+    routes.update(overrides)
+    return standard_api(**routes)
