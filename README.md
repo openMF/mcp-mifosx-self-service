@@ -392,6 +392,7 @@ see the "Honest limits" line in each tool's description.
 | GET    | `get_pockets`                  | The accounts saved as favourites (pockets) |
 | POST   | `add_accounts_to_pocket`       | Save the user's loan, savings or share accounts as favourites |
 | POST   | `remove_accounts_from_pocket`  | Remove favourites by mapping id (from `get_pockets`) |
+| GET    | `get_security_activity`        | Logins and sensitive actions (password, transfers, beneficiaries), newest first; filter by type |
 
 ### Transfers
 
