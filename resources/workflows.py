@@ -28,7 +28,7 @@ async def get_workflows() -> str:
     ## 3. Setup and Make Transfer
     ```
     1. Call login once (skip if the server has MIFOS_USERNAME / MIFOS_PASSWORD set)
-    2. Call add_beneficiary to add recipient
+    2. Call create_beneficiary_savings (or create_beneficiary_loan) to add the recipient
     3. Call get_third_party_transfer_template to see the beneficiary accounts
     4. Call prepare_transfer (third_party true) and show the user the summary it returns
     5. Only after the user says yes, call confirm_transfer with the confirmation_id (cancel_transfer if not)
