@@ -330,6 +330,15 @@ see the "Honest limits" line in each tool's description.
 | GET    | `get_office_address`       | Street address of an office                   |
 | GET    | `get_office_geolocation`   | Map location of an office                     |
 
+### Profile and pockets
+
+| Method | MCP Tool Name                  | Description                              |
+|--------|--------------------------------|------------------------------------------|
+| GET    | `get_user_details`             | The logged-in user's roles, permissions and clients (banks with OAuth login only; credentials are removed) |
+| GET    | `get_pockets`                  | The accounts saved as favourites (pockets) |
+| POST   | `add_accounts_to_pocket`       | Save the user's loan, savings or share accounts as favourites |
+| POST   | `remove_accounts_from_pocket`  | Remove favourites by mapping id (from `get_pockets`) |
+
 ### Transfers
 
 | Method | MCP Tool Name                  | Description                              |
