@@ -311,6 +311,13 @@ These tools are invoked by MCP-compatible AI clients, not directly via HTTP.
 | PUT    | `update_loan_application`        | Update loan application                  |
 | POST   | `withdraw_loan_application`      | Withdraw loan application                |
 
+### Loan simulation (no login needed)
+
+| Method | MCP Tool Name                   | Description                                              |
+|--------|---------------------------------|----------------------------------------------------------|
+| GET    | `get_loan_simulation_products`  | Loan products available for simulation, with their limits |
+| POST   | `simulate_loan`                 | Estimate interest, total and installments for an amount   |
+
 ### Savings
 
 | Method | MCP Tool Name                    | Description                              |
