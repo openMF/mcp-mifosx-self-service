@@ -241,9 +241,12 @@ These tools are invoked by MCP-compatible AI clients, not directly via HTTP.
 
 | Method | MCP Tool Name              | Description                              |
 |--------|----------------------------|------------------------------------------|
-| POST   | `register_self_service`    | Register a new self-service user          |
-| POST   | `confirm_registration`     | Confirm user registration with token     |
+| POST   | `register_self_service_existing_client` | Register a self-service user for an existing client |
+| POST   | `confirm_self_service_user_registration` | Confirm the registration with the request id and token |
+| POST   | `verify_user_registration` | Same as `confirm_self_service_user_registration` |
+| GET    | `confirm_self_service_user_registration_status` | Check the registration: lists the clients the user can see |
 | POST   | `login`                    | Log in and keep the session in the server |
+| POST   | `authenticate_user_self_service` | Same as `login`                     |
 | POST   | `logout`                   | End the session                           |
 | PUT    | `update_account_password`  | Change the password (asks for a one-time code) |
 
@@ -251,20 +254,25 @@ These tools are invoked by MCP-compatible AI clients, not directly via HTTP.
 
 | Method | MCP Tool Name              | Description                              |
 |--------|----------------------------|------------------------------------------|
-| GET    | `get_client_info`          | Retrieve client information               |
+| GET    | `get_clients_linked_to_user` | The clients linked to the logged-in user (gives the client id) |
+| GET    | `get_client_details`       | Retrieve client information               |
 | GET    | `get_client_accounts`      | Retrieve client accounts                  |
 | GET    | `get_client_charges`       | Retrieve client charges                   |
+| GET    | `get_client_images`        | Retrieve client images                    |
 | GET    | `get_client_transactions`  | Retrieve client transactions              |
+| GET    | `get_client_transaction_detail` | Retrieve one client transaction      |
 
 ### Beneficiaries
 
 | Method | MCP Tool Name              | Description                              |
 |--------|----------------------------|------------------------------------------|
-| GET    | `get_beneficiaries`        | List all beneficiaries                    |
-| GET    | `get_beneficiary_template` | Get beneficiary template for an account  |
-| POST   | `add_beneficiary`          | Add a new beneficiary                     |
-| PUT    | `update_beneficiary`      | Update an existing beneficiary            |
-| DELETE | `delete_beneficiary`      | Delete a beneficiary                      |
+| GET    | `get_beneficiary_list`     | List all beneficiaries                    |
+| GET    | `get_beneficiary_template` | Get the template for creating beneficiaries |
+| POST   | `create_beneficiary_savings` | Add a beneficiary with a savings account |
+| POST   | `create_beneficiary_loan`  | Add a beneficiary with a loan account     |
+| PUT    | `update_beneficiary_savings` | Update a savings beneficiary            |
+| PUT    | `update_beneficiary_loan`  | Update a loan beneficiary                 |
+| DELETE | `delete_beneficiary`       | Delete a beneficiary                      |
 
 ### Loans
 
@@ -341,6 +349,15 @@ see the "Honest limits" line in each tool's description.
 | GET    | `get_office_services`      | Services an office offers, with working hours |
 | GET    | `get_office_address`       | Street address of an office                   |
 | GET    | `get_office_geolocation`   | Map location of an office                     |
+
+### Profile and pockets
+
+| Method | MCP Tool Name                  | Description                              |
+|--------|--------------------------------|------------------------------------------|
+| GET    | `get_user_details`             | The logged-in user's roles, permissions and clients (banks with OAuth login only; credentials are removed) |
+| GET    | `get_pockets`                  | The accounts saved as favourites (pockets) |
+| POST   | `add_accounts_to_pocket`       | Save the user's loan, savings or share accounts as favourites |
+| POST   | `remove_accounts_from_pocket`  | Remove favourites by mapping id (from `get_pockets`) |
 
 ### Transfers
 
