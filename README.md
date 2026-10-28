@@ -221,9 +221,12 @@ These tools are invoked by MCP-compatible AI clients, not directly via HTTP.
 
 | Method | MCP Tool Name              | Description                              |
 |--------|----------------------------|------------------------------------------|
-| POST   | `register_self_service`    | Register a new self-service user          |
-| POST   | `confirm_registration`     | Confirm user registration with token     |
+| POST   | `register_self_service_existing_client` | Register a self-service user for an existing client |
+| POST   | `confirm_self_service_user_registration` | Confirm the registration with the request id and token |
+| POST   | `verify_user_registration` | Same as `confirm_self_service_user_registration` |
+| GET    | `confirm_self_service_user_registration_status` | Check the registration: lists the clients the user can see |
 | POST   | `login`                    | Log in and keep the session in the server |
+| POST   | `authenticate_user_self_service` | Same as `login`                     |
 | POST   | `logout`                   | End the session                           |
 | PUT    | `update_account_password`  | Change the password (asks for a one-time code) |
 
@@ -231,20 +234,25 @@ These tools are invoked by MCP-compatible AI clients, not directly via HTTP.
 
 | Method | MCP Tool Name              | Description                              |
 |--------|----------------------------|------------------------------------------|
-| GET    | `get_client_info`          | Retrieve client information               |
+| GET    | `get_clients_linked_to_user` | The clients linked to the logged-in user (gives the client id) |
+| GET    | `get_client_details`       | Retrieve client information               |
 | GET    | `get_client_accounts`      | Retrieve client accounts                  |
 | GET    | `get_client_charges`       | Retrieve client charges                   |
+| GET    | `get_client_images`        | Retrieve client images                    |
 | GET    | `get_client_transactions`  | Retrieve client transactions              |
+| GET    | `get_client_transaction_detail` | Retrieve one client transaction      |
 
 ### Beneficiaries
 
 | Method | MCP Tool Name              | Description                              |
 |--------|----------------------------|------------------------------------------|
-| GET    | `get_beneficiaries`        | List all beneficiaries                    |
-| GET    | `get_beneficiary_template` | Get beneficiary template for an account  |
-| POST   | `add_beneficiary`          | Add a new beneficiary                     |
-| PUT    | `update_beneficiary`      | Update an existing beneficiary            |
-| DELETE | `delete_beneficiary`      | Delete a beneficiary                      |
+| GET    | `get_beneficiary_list`     | List all beneficiaries                    |
+| GET    | `get_beneficiary_template` | Get the template for creating beneficiaries |
+| POST   | `create_beneficiary_savings` | Add a beneficiary with a savings account |
+| POST   | `create_beneficiary_loan`  | Add a beneficiary with a loan account     |
+| PUT    | `update_beneficiary_savings` | Update a savings beneficiary            |
+| PUT    | `update_beneficiary_loan`  | Update a loan beneficiary                 |
+| DELETE | `delete_beneficiary`       | Delete a beneficiary                      |
 
 ### Loans
 
@@ -335,11 +343,15 @@ see the "Honest limits" line in each tool's description.
 
 | Method | MCP Tool Name                  | Description                              |
 |--------|--------------------------------|------------------------------------------|
-| GET    | `get_transfer_template`        | Retrieve transfer options                |
+| GET    | `get_account_transfer_template` | Accounts you can transfer between      |
+| GET    | `get_third_party_transfer_template` | Your accounts and saved beneficiaries for third-party transfers |
+| GET    | `transfer_to_third_party_template` | Same as `get_third_party_transfer_template` |
 | GET    | `get_transfer_fees`            | List the bank's transfer fee rules (filter by type and currency) |
 | POST   | `get_transfer_quote`           | Ask the bank for the exact fee and total of a transfer (moves no money) |
 | POST   | `make_third_party_transfer`   | Perform a third-party account transfer (may ask for a one-time code) |
 | POST   | `transfer_between_accounts`   | Transfer between your own accounts (may ask for a one-time code) |
+| POST   | `make_account_transfer`       | Same as `transfer_between_accounts` |
+| POST   | `transfer_to_third_party`     | Same as `make_third_party_transfer` |
 | POST   | `verify_step_up`              | Give the code the user received to the operation that waits for it (clients without elicitation) |
 | POST   | `resend_step_up`              | Send the code again |
 
