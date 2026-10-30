@@ -34,6 +34,7 @@ from pydantic import BaseModel, Field
 
 from mcp_app import mcp
 from utils.auth import clear_login
+from utils.errors import KEPT_FIELDS
 from utils.http import make_request
 
 STEP_UP_HEADER = "X-Step-Up-Token"
@@ -107,9 +108,17 @@ def clear_pending() -> None:
 
 
 def _body(result: Any) -> Dict[str, Any]:
-    """The JSON error body of a failed request (make_request keeps the raw text in ``message``)."""
+    """The error code and step-up details of a failed request.
+
+    make_request returns the bank's error code in ``code`` (see utils.errors); an answer that still carries
+    the raw JSON body in ``message`` is read too.
+    """
     if not isinstance(result, dict) or not result.get("error"):
         return {}
+    if "code" in result:
+        body = {key: result[key] for key in KEPT_FIELDS if key in result}
+        body["userMessageGlobalisationCode"] = result["code"]
+        return body
     message = result.get("message")
     if isinstance(message, dict):
         return message
