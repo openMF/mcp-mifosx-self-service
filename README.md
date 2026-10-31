@@ -305,11 +305,20 @@ These tools are invoked by MCP-compatible AI clients, not directly via HTTP.
 | GET    | `get_loan_account_details`       | Retrieve loan account details           |
 | GET    | `get_loan_transaction_detail`    | Retrieve loan transaction detail        |
 | GET    | `get_loan_account_charges`       | Retrieve loan charges                    |
-| GET    | `get_loan_template`              | Retrieve loan application template       |
-| POST   | `calculate_loan_repayment_calendar` | Calculate loan repayment schedule    |
-| POST   | `submit_loan_application`        | Submit loan application                  |
-| PUT    | `update_loan_application`        | Update loan application                  |
+| GET    | `get_loan_template`              | Products a client can apply for, or one product's terms and loan purposes |
+| POST   | `calculate_loan_repayment_calendar` | Repayment schedule for an amount and number of repayments (submits nothing) |
+| POST   | `prepare_loan_application`       | Step 1: check a new application (or a change to a pending one) and show its schedule |
+| POST   | `confirm_loan_application`       | Step 2: submit the prepared application, once, after the user says yes |
+| POST   | `cancel_loan_application`        | Drop a prepared application              |
 | POST   | `withdraw_loan_application`      | Withdraw loan application                |
+
+Loan applications take typed fields (product, amount, number of repayments, loan purpose, expected
+disbursement date). Everything else (interest, repayment frequency, product charges) comes from the bank's
+loan template, and the amount and number of repayments are checked against the product's limits.
+A loan creates a debt, so `prepare_loan_application` returns the schedule the bank calculates and submits
+nothing; `confirm_loan_application` submits it only with the confirmation id, at most once, and asks the
+person in a form when the client can show one. Passing `loan_id` changes an application that is still
+waiting for approval the same way.
 
 ### Loan simulation (no login needed)
 

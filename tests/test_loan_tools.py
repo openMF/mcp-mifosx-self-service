@@ -7,9 +7,6 @@ from routers.loan_tools import (
     get_loan_transaction_detail,
     get_loan_account_charges,
     get_loan_template,
-    calculate_loan_repayment_calendar,
-    submit_loan_application,
-    update_loan_application,
     withdraw_loan_application,
 )
 
@@ -95,52 +92,8 @@ async def test_get_loan_template(mock_get_auth_header, mock_make_request, mock_a
     assert result == {"template": True}
     mock_get_auth_header.assert_called_once_with()
     mock_make_request.assert_called_once_with(
-        "GET", "/self/loans/template?clientId=1&productId=2&templateType=individual", auth=mock_auth
+        "GET", "/self/loans/template?clientId=1&templateType=individual&productId=2", auth=mock_auth
     )
-
-
-@pytest.mark.asyncio
-@patch("routers.loan_tools.make_request", new_callable=AsyncMock)
-@patch("routers.loan_tools.get_auth_header")
-async def test_calculate_loan_repayment_calendar(mock_get_auth_header, mock_make_request, mock_auth):
-    mock_get_auth_header.return_value = mock_auth
-    mock_make_request.return_value = {"schedule": []}
-    data = {"amount": 1000}
-
-    result = await calculate_loan_repayment_calendar(data)
-    assert result == {"schedule": []}
-    mock_get_auth_header.assert_called_once_with()
-    mock_make_request.assert_called_once_with(
-        "POST", "/self/loans?command=calculateLoanSchedule", auth=mock_auth, data=data
-    )
-
-
-@pytest.mark.asyncio
-@patch("routers.loan_tools.make_request", new_callable=AsyncMock)
-@patch("routers.loan_tools.get_auth_header")
-async def test_submit_loan_application(mock_get_auth_header, mock_make_request, mock_auth):
-    mock_get_auth_header.return_value = mock_auth
-    mock_make_request.return_value = {"resourceId": 10}
-    data = {"amount": 1000}
-
-    result = await submit_loan_application(data)
-    assert result == {"resourceId": 10}
-    mock_get_auth_header.assert_called_once_with()
-    mock_make_request.assert_called_once_with("POST", "/self/loans", auth=mock_auth, data=data)
-
-
-@pytest.mark.asyncio
-@patch("routers.loan_tools.make_request", new_callable=AsyncMock)
-@patch("routers.loan_tools.get_auth_header")
-async def test_update_loan_application(mock_get_auth_header, mock_make_request, mock_auth):
-    mock_get_auth_header.return_value = mock_auth
-    mock_make_request.return_value = {"resourceId": 10}
-    data = {"amount": 2000}
-
-    result = await update_loan_application(10, data)
-    assert result == {"resourceId": 10}
-    mock_get_auth_header.assert_called_once_with()
-    mock_make_request.assert_called_once_with("PUT", "/self/loans/10", auth=mock_auth, data=data)
 
 
 @pytest.mark.asyncio
