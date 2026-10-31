@@ -58,7 +58,18 @@ async def get_workflows() -> str:
        (cancel_loan_application if not). The bank still has to approve the loan
     ```
 
-    ## 6. Review a Statement and Spending Habits
+    ## 6. Add Guarantors to a Loan Application
+    ```
+    1. Call login once (skip if the server has MIFOS_USERNAME / MIFOS_PASSWORD set)
+    2. The loan application must still be waiting for approval
+    3. Call get_guarantor_template for the relationship options
+    4. Call create_guarantor for a customer, staff member or external person
+    5. To pledge the user's own savings, call prepare_savings_guarantee and show the user the amount that will
+       be blocked; only after they say yes call confirm_savings_guarantee (cancel_savings_guarantee if not)
+    6. Call get_guarantor_list to check, update_guarantor or delete_guarantor to change or remove one
+    ```
+
+    ## 7. Review a Statement and Spending Habits
     ```
     1. Call login once (skip if the server has MIFOS_USERNAME / MIFOS_PASSWORD set)
     2. Call get_clients_linked_to_user to get client ID
