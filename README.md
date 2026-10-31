@@ -329,8 +329,10 @@ These tools are invoked by MCP-compatible AI clients, not directly via HTTP.
 | GET    | `get_savings_account_transaction_details` | Get transaction details          |
 | GET    | `get_savings_account_charges`     | Get savings account charges              |
 | GET    | `get_savings_account_template_raw`| Get savings account template             |
-| POST   | `submit_savings_application`     | Submit savings account application       |
-| PUT    | `update_savings_account_application` | Update savings account application    |
+| -      | `prepare_savings_application`    | Step 1: check an application for a savings account and get a summary and a `confirmation_id` (submits nothing) |
+| POST   | `confirm_savings_application`    | Step 2: submit the prepared application once, after the user confirmed |
+| -      | `cancel_savings_application`     | Drop a prepared application |
+| PUT    | `update_savings_account_application` | Change the product, field officer or external id of an application waiting for approval |
 
 ### Statements & Insights
 
