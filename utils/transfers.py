@@ -152,3 +152,9 @@ class ConfirmApplicationForm(BaseModel):
     """The form for applications (e.g. shares). Only a primitive field is allowed."""
 
     confirm: bool = Field(title="Submit this application", description="Tick to submit the application")
+
+
+class ConfirmBeneficiaryForm(BaseModel):
+    """The form for adding or changing a beneficiary. Only a primitive field is allowed."""
+
+    confirm: bool = Field(title="Save this beneficiary", description="Tick to save the beneficiary")

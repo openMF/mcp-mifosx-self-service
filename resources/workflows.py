@@ -28,7 +28,8 @@ async def get_workflows() -> str:
     ## 3. Setup and Make Transfer
     ```
     1. Call login once (skip if the server has MIFOS_USERNAME / MIFOS_PASSWORD set)
-    2. Call create_beneficiary_savings (or create_beneficiary_loan) to add the recipient
+    2. Call prepare_beneficiary to add the recipient, show the user what it returns and, only after the user
+       says yes, call confirm_beneficiary with the confirmation_id
     3. Call get_third_party_transfer_template to see the beneficiary accounts
     4. Call prepare_transfer (third_party true) and show the user the summary it returns
     5. Only after the user says yes, call confirm_transfer with the confirmation_id (cancel_transfer if not)
@@ -40,7 +41,8 @@ async def get_workflows() -> str:
     ```
     1. Call login once (skip if the server has MIFOS_USERNAME / MIFOS_PASSWORD set)
     2. Call get_beneficiary_list to list all
-    3. Call update_beneficiary_savings or update_beneficiary_loan to modify limits
+    3. Call prepare_beneficiary_change to change a name or transfer limit, show the user the change and,
+       only after the user says yes, call confirm_beneficiary (cancel_beneficiary if not)
     4. Call delete_beneficiary to remove
     ```
 

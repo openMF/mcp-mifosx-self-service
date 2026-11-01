@@ -151,6 +151,13 @@ the linked savings account is the client's, active and in the product's currency
 then `confirm_share_application` or `cancel_share_application`. A share confirmation id cannot confirm a
 transfer, and the other way round. The bank still has to approve the application.
 
+Adding a beneficiary works the same way, because money can be sent to it later: `prepare_beneficiary(name,
+account_number, office_name, account_type, transfer_limit)` checks the account type ("savings" or "loan") against
+the bank's template and the office against the bank's offices, takes the currency of your own accounts (or the
+`currency` you pass) and saves nothing. `prepare_beneficiary_change(beneficiary_id, name, transfer_limit)` shows
+the old and new values; the bank only lets the name and the transfer limit change. `confirm_beneficiary` saves
+either one, `cancel_beneficiary` drops it.
+
 ## Human-in-the-loop confirmation for sensitive tools
 
 When the bank has step-up authentication turned on (selfservice-plugin, MX-488), some operations need a
@@ -303,11 +310,11 @@ These tools are invoked by MCP-compatible AI clients, not directly via HTTP.
 | Method | MCP Tool Name              | Description                              |
 |--------|----------------------------|------------------------------------------|
 | GET    | `get_beneficiary_list`     | List all beneficiaries                    |
-| GET    | `get_beneficiary_template` | Get the template for creating beneficiaries |
-| POST   | `create_beneficiary_savings` | Add a beneficiary with a savings account |
-| POST   | `create_beneficiary_loan`  | Add a beneficiary with a loan account     |
-| PUT    | `update_beneficiary_savings` | Update a savings beneficiary            |
-| PUT    | `update_beneficiary_loan`  | Update a loan beneficiary                 |
+| GET    | `get_beneficiary_template` | The account types a beneficiary can have  |
+| -      | `prepare_beneficiary`      | Step 1: check a new beneficiary (saves nothing) |
+| -      | `prepare_beneficiary_change` | Step 1: check a new name or transfer limit (saves nothing) |
+| POST/PUT | `confirm_beneficiary`    | Step 2: save the prepared beneficiary or change |
+| -      | `cancel_beneficiary`       | Drop a prepared beneficiary or change     |
 | DELETE | `delete_beneficiary`       | Delete a beneficiary                      |
 
 ### Loans
