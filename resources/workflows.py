@@ -46,7 +46,19 @@ async def get_workflows() -> str:
     4. Call delete_beneficiary to remove
     ```
 
-    ## 5. Review a Statement and Spending Habits
+    ## 5. Apply for a Loan
+    ```
+    1. Call login once (skip if the server has MIFOS_USERNAME / MIFOS_PASSWORD set)
+    2. Call get_clients_linked_to_user to get client ID
+    3. Call get_loan_template without product_id to list the products, then with product_id for its limits
+       and loan purposes
+    4. Call calculate_loan_repayment_calendar if the user wants to compare amounts or terms
+    5. Call prepare_loan_application and show the user the amount, installments, total to repay and schedule
+    6. Only after the user says yes, call confirm_loan_application with the confirmation_id
+       (cancel_loan_application if not). The bank still has to approve the loan
+    ```
+
+    ## 6. Review a Statement and Spending Habits
     ```
     1. Call login once (skip if the server has MIFOS_USERNAME / MIFOS_PASSWORD set)
     2. Call get_clients_linked_to_user to get client ID
