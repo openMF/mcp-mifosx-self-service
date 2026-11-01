@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Literal
+from typing import Annotated, Any, Dict, List, Literal, Optional
 
 from mcp.types import ToolAnnotations
 from pydantic import BaseModel, Field
@@ -81,3 +81,49 @@ async def remove_accounts_from_pocket(mapping_ids: List[int]) -> Dict[str, Any]:
         auth=get_auth_header(),
         data={"pocketAccountMappingIds": list(mapping_ids)},
     )
+
+
+ActivityType = Literal[
+    "LOGIN",
+    "LOGIN_FAILED",
+    "LOGIN_NEW_DEVICE",
+    "LOGOUT",
+    "PASSWORD_CHANGED",
+    "PASSWORD_RESET",
+    "TRANSFER_CONFIRMED",
+    "BENEFICIARY_ADDED",
+    "BENEFICIARY_UPDATED",
+    "BENEFICIARY_DELETED",
+    "PROFILE_IMAGE_CHANGED",
+    "PROFILE_IMAGE_REMOVED",
+    "SINPE_SUBSCRIPTION_CHANGED",
+    "STEP_UP_REQUESTED",
+    "STEP_UP_VERIFIED",
+    "STEP_UP_LOCKED",
+    "AUTHENTICATOR_ENROLLED",
+    "AUTHENTICATOR_REMOVED",
+    "AUTHENTICATOR_RESET",
+    "AUTHENTICATOR_LOCKED",
+    "RECOVERY_CODES_REGENERATED",
+]
+
+
+@mcp.tool(name="get_security_activity", annotations=READ_ONLY)
+async def get_security_activity(
+    limit: Annotated[int, Field(ge=1, le=100, description="How many events to return")] = 20,
+    offset: Annotated[int, Field(ge=0, description="How many of the newest events to skip")] = 0,
+    types: Annotated[
+        Optional[List[ActivityType]], Field(description="Only these event types, e.g. LOGIN_FAILED")
+    ] = None,
+) -> Dict[str, Any]:
+    """Get Security Activity - The user's logins and sensitive actions, newest first.
+
+    Use it to answer "who logged in to my account?" or "did someone change my password?". Each event
+    has its type, date, outcome and a masked IP address. Filter with types, e.g. LOGIN_FAILED and
+    LOGIN_NEW_DEVICE for suspicious access. If something looks unfamiliar, tell the user to change their
+    password and contact the bank.
+    """
+    path = f"/self/activity?limit={limit}&offset={offset}"
+    if types:
+        path += "&type=" + ",".join(dict.fromkeys(types))
+    return await make_request("GET", path, auth=get_auth_header())

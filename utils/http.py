@@ -1,6 +1,7 @@
 import httpx
 from typing import Optional, Dict, Any
 from config.config import BASE_URL, API_BASE_PATH, DEFAULT_TENANT
+from utils.errors import api_error
 
 
 async def make_request(
@@ -28,11 +29,7 @@ async def make_request(
             response = await client.request(method=method, url=url, headers=request_headers, json=data)
 
             if response.status_code >= 400:
-                return {
-                    "error": True,
-                    "status_code": response.status_code,
-                    "message": response.text,
-                }
+                return api_error(response.status_code, response.text)
 
             try:
                 return response.json()
