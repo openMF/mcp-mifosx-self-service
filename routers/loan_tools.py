@@ -351,17 +351,30 @@ async def cancel_loan_application(confirmation_id: str) -> Dict[str, Any]:
 
 
 @mcp.tool(name="withdraw_loan_application")
-async def withdraw_loan_application(loan_id: int, note: str) -> Dict[str, Any]:
-    """Withdraw loan application."""
+async def withdraw_loan_application(loan_id: int, note: Optional[str] = None) -> Dict[str, Any]:
+    """Withdraw Loan Application - Withdraws one of the user's loan applications that is still waiting for approval.
+
+    After approval only the bank's staff can stop the loan. The date is today in the bank's time zone.
+    """
     auth = get_auth_header()
+    loan = await make_request("GET", f"/self/loans/{loan_id}", auth=auth)
+    if not isinstance(loan, dict) or loan.get("error"):
+        return transfers.failure(404, f"Loan {loan_id} was not found among the user's loans.")
+    status = loan.get("status") or {}
+    if not status.get("pendingApproval"):
+        return transfers.failure(
+            400,
+            f"Loan {loan_id} is {status.get('value') or 'not waiting for approval'}. Only an application that is "
+            "still waiting for approval can be withdrawn.",
+        )
 
     data = {
-        "withdrawnOnDate": "30 August 2025",
-        "note": note,
+        "withdrawnOnDate": transfers.format_date(transfers.today()),
         "dateFormat": "dd MMMM yyyy",
         "locale": "en",
     }
-
+    if note and note.strip():
+        data["note"] = note.strip()
     return await make_request(
         "POST",
         f"/self/loans/{loan_id}?command=withdrawnByApplicant",
