@@ -198,6 +198,20 @@ server then uses it without any setting.
 - **Pairing, new recovery codes and removing the app are not tools.** The secret and the recovery codes must not
   pass through an AI conversation, so the user does that in the bank's own app or website.
 
+## Errors
+
+When the bank refuses a request, tools answer with a short, readable error instead of the bank's raw response:
+
+```json
+{"error": true, "status_code": 400,
+ "message": "The parameter `productId` is mandatory.",
+ "errors": [{"message": "The parameter `productId` is mandatory.", "parameter": "productId"}],
+ "code": "validation.msg.validation.errors.exist"}
+```
+
+`errors` lists the fields to fix and `code` is the bank's error code. Developer messages, server paths and HTML
+error pages are never passed on.
+
 ## Running with Docker
 
 The project includes Docker support for easy deployment:
@@ -394,6 +408,7 @@ see the "Honest limits" line in each tool's description.
 | GET    | `get_pockets`                  | The accounts saved as favourites (pockets) |
 | POST   | `add_accounts_to_pocket`       | Save the user's loan, savings or share accounts as favourites |
 | POST   | `remove_accounts_from_pocket`  | Remove favourites by mapping id (from `get_pockets`) |
+| GET    | `get_security_activity`        | Logins and sensitive actions (password, transfers, beneficiaries), newest first; filter by type |
 
 ### Transfers
 
