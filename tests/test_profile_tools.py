@@ -10,6 +10,7 @@ from routers.profile_tools import (
     PocketAccount,
     add_accounts_to_pocket,
     get_pockets,
+    get_security_activity,
     get_user_details,
     remove_accounts_from_pocket,
 )
@@ -110,3 +111,41 @@ async def test_through_mcp_the_account_list_is_validated_and_sent():
     assert api.call_args.kwargs["data"] == {"accountsDetail": [{"accountId": 1475, "accountType": "loan"}]}
     with pytest.raises(Exception):
         await mcp.call_tool("add_accounts_to_pocket", {"accounts": [{"account_id": 1, "account_type": "car"}]})
+
+
+# --- security activity ----------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_security_activity_defaults_to_the_newest_twenty():
+    page = {"totalFilteredRecords": 1, "pageItems": [{"type": "LOGIN"}]}
+    with bank(page) as api:
+        assert await get_security_activity() == page
+    api.assert_called_once_with("GET", "/self/activity?limit=20&offset=0", auth=AUTH)
+
+
+@pytest.mark.asyncio
+async def test_security_activity_can_page_and_filter_by_type():
+    with bank({"pageItems": []}) as api:
+        await get_security_activity(limit=5, offset=10, types=["LOGIN_FAILED", "LOGIN_NEW_DEVICE", "LOGIN_FAILED"])
+    api.assert_called_once_with("GET", "/self/activity?limit=5&offset=10&type=LOGIN_FAILED,LOGIN_NEW_DEVICE", auth=AUTH)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "arguments",
+    [{"limit": 0}, {"limit": 101}, {"offset": -1}, {"types": ["SOMETHING_ELSE"]}],
+)
+async def test_through_mcp_bad_activity_arguments_send_nothing(arguments):
+    with bank({}) as api:
+        with pytest.raises(Exception):
+            await mcp.call_tool("get_security_activity", arguments)
+    api.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_through_mcp_the_activity_filter_reaches_the_bank():
+    with bank({"totalFilteredRecords": 0, "pageItems": []}) as api:
+        _, structured = await mcp.call_tool("get_security_activity", {"types": ["PASSWORD_CHANGED"]})
+    assert structured["result"] == {"totalFilteredRecords": 0, "pageItems": []}
+    assert api.call_args.args[1] == "/self/activity?limit=20&offset=0&type=PASSWORD_CHANGED"

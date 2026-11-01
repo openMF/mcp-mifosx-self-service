@@ -8,8 +8,6 @@ from routers.savings_tools import (
     get_savings_transaction_details,
     get_savings_charges,
     get_savings_template_raw,
-    submit_savings_application,
-    update_savings_application,
 )
 
 
@@ -111,31 +109,3 @@ async def test_get_savings_template_raw(mock_get_auth_header, mock_make_request,
     mock_make_request.assert_called_once_with(
         "GET", "/self/savingsaccounts/template?clientId=1&productId=2", auth=mock_auth
     )
-
-
-@pytest.mark.asyncio
-@patch("routers.savings_tools.make_request", new_callable=AsyncMock)
-@patch("routers.savings_tools.get_auth_header")
-async def test_submit_savings_application(mock_get_auth_header, mock_make_request, mock_auth):
-    mock_get_auth_header.return_value = mock_auth
-    mock_make_request.return_value = {"resourceId": 10}
-    data = {"amount": 1000}
-
-    result = await submit_savings_application(data)
-    assert result == {"resourceId": 10}
-    mock_get_auth_header.assert_called_once_with()
-    mock_make_request.assert_called_once_with("POST", "/self/savingsaccounts", auth=mock_auth, data=data)
-
-
-@pytest.mark.asyncio
-@patch("routers.savings_tools.make_request", new_callable=AsyncMock)
-@patch("routers.savings_tools.get_auth_header")
-async def test_update_savings_application(mock_get_auth_header, mock_make_request, mock_auth):
-    mock_get_auth_header.return_value = mock_auth
-    mock_make_request.return_value = {"resourceId": 10}
-    data = {"amount": 2000}
-
-    result = await update_savings_application(10, data)
-    assert result == {"resourceId": 10}
-    mock_get_auth_header.assert_called_once_with()
-    mock_make_request.assert_called_once_with("PUT", "/self/savingsaccounts/10", auth=mock_auth, data=data)

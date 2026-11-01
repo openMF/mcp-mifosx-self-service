@@ -151,6 +151,13 @@ the linked savings account is the client's, active and in the product's currency
 then `confirm_share_application` or `cancel_share_application`. A share confirmation id cannot confirm a
 transfer, and the other way round. The bank still has to approve the application.
 
+Adding a beneficiary works the same way, because money can be sent to it later: `prepare_beneficiary(name,
+account_number, office_name, account_type, transfer_limit)` checks the account type ("savings" or "loan") against
+the bank's template and the office against the bank's offices, takes the currency of your own accounts (or the
+`currency` you pass) and saves nothing. `prepare_beneficiary_change(beneficiary_id, name, transfer_limit)` shows
+the old and new values; the bank only lets the name and the transfer limit change. `confirm_beneficiary` saves
+either one, `cancel_beneficiary` drops it.
+
 ## Human-in-the-loop confirmation for sensitive tools
 
 When the bank has step-up authentication turned on (selfservice-plugin, MX-488), some operations need a
@@ -197,6 +204,20 @@ server then uses it without any setting.
   an app code cannot be sent again.
 - **Pairing, new recovery codes and removing the app are not tools.** The secret and the recovery codes must not
   pass through an AI conversation, so the user does that in the bank's own app or website.
+
+## Errors
+
+When the bank refuses a request, tools answer with a short, readable error instead of the bank's raw response:
+
+```json
+{"error": true, "status_code": 400,
+ "message": "The parameter `productId` is mandatory.",
+ "errors": [{"message": "The parameter `productId` is mandatory.", "parameter": "productId"}],
+ "code": "validation.msg.validation.errors.exist"}
+```
+
+`errors` lists the fields to fix and `code` is the bank's error code. Developer messages, server paths and HTML
+error pages are never passed on.
 
 ## Running with Docker
 
@@ -289,11 +310,11 @@ These tools are invoked by MCP-compatible AI clients, not directly via HTTP.
 | Method | MCP Tool Name              | Description                              |
 |--------|----------------------------|------------------------------------------|
 | GET    | `get_beneficiary_list`     | List all beneficiaries                    |
-| GET    | `get_beneficiary_template` | Get the template for creating beneficiaries |
-| POST   | `create_beneficiary_savings` | Add a beneficiary with a savings account |
-| POST   | `create_beneficiary_loan`  | Add a beneficiary with a loan account     |
-| PUT    | `update_beneficiary_savings` | Update a savings beneficiary            |
-| PUT    | `update_beneficiary_loan`  | Update a loan beneficiary                 |
+| GET    | `get_beneficiary_template` | The account types a beneficiary can have  |
+| -      | `prepare_beneficiary`      | Step 1: check a new beneficiary (saves nothing) |
+| -      | `prepare_beneficiary_change` | Step 1: check a new name or transfer limit (saves nothing) |
+| POST/PUT | `confirm_beneficiary`    | Step 2: save the prepared beneficiary or change |
+| -      | `cancel_beneficiary`       | Drop a prepared beneficiary or change     |
 | DELETE | `delete_beneficiary`       | Delete a beneficiary                      |
 
 ### Loans
@@ -338,8 +359,10 @@ waiting for approval the same way.
 | GET    | `get_savings_account_transaction_details` | Get transaction details          |
 | GET    | `get_savings_account_charges`     | Get savings account charges              |
 | GET    | `get_savings_account_template_raw`| Get savings account template             |
-| POST   | `submit_savings_application`     | Submit savings account application       |
-| PUT    | `update_savings_account_application` | Update savings account application    |
+| -      | `prepare_savings_application`    | Step 1: check an application for a savings account and get a summary and a `confirmation_id` (submits nothing) |
+| POST   | `confirm_savings_application`    | Step 2: submit the prepared application once, after the user confirmed |
+| -      | `cancel_savings_application`     | Drop a prepared application |
+| PUT    | `update_savings_account_application` | Change the product, field officer or external id of an application waiting for approval |
 
 ### Statements & Insights
 
@@ -401,6 +424,7 @@ see the "Honest limits" line in each tool's description.
 | GET    | `get_pockets`                  | The accounts saved as favourites (pockets) |
 | POST   | `add_accounts_to_pocket`       | Save the user's loan, savings or share accounts as favourites |
 | POST   | `remove_accounts_from_pocket`  | Remove favourites by mapping id (from `get_pockets`) |
+| GET    | `get_security_activity`        | Logins and sensitive actions (password, transfers, beneficiaries), newest first; filter by type |
 
 ### Transfers
 
