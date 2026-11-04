@@ -5,6 +5,12 @@ fastmcp
 # mcp 2.x renamed mcp.server.fastmcp (used in mcp_app.py); stay on 1.x until we migrate
 mcp>=1.10,<2
 fastapi-mcp
+
+# Document capture-quality gate (utils/capture_gate.py): quality math is pure
+# NumPy; Pillow is only used to decode image files. Deterministic AI-267
+# decision model, Stage B — no LLM, no CV/ML library.
+numpy>=1.24
+pillow>=9.0
 black
 flake8
 pytest
