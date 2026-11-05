@@ -15,8 +15,8 @@ their own linked client; that remains Fineract's job to enforce.
 `verify_client_details` covers the content side: the AI client's vision
 model (GLM, Claude, anything with image input) reads the photo and extracts
 fields; this tool fetches the client's record from Fineract and compares
-them deterministically (utils/verify_fields.py) — per-field MATCH / REVIEW
-/ MISMATCH verdicts, never an LLM guess.
+them deterministically (utils/verify_fields.py) — per-field
+MATCH / REVIEW / MISMATCH / NO_SOURCE_DATA verdicts, never an LLM guess.
 """
 
 import os
@@ -25,11 +25,32 @@ from typing import Any, Dict, Optional
 from mcp_app import mcp
 
 from utils.auth import get_auth_header
-from utils.capture_gate import VERDICT_RETAKE, assess_image
+from utils.capture_gate import VERDICT_RETAKE, UnreadableImageError, assess_image
 from utils.http import make_request, make_upload_request
 from utils.verify_fields import verify_fields
 
 _MAX_CAPTURE_BYTES = 40 * 1024 * 1024
+
+
+def _capture_root() -> str:
+    """The configured capture directory (MIFOSX_CAPTURE_DIR)."""
+    return os.environ.get("MIFOSX_CAPTURE_DIR", "")
+
+
+def _resolve_capture_path(image_path: str) -> Optional[str]:
+    """Resolve `image_path` and confine it to the configured capture directory.
+
+    Returns the resolved path, or None when it sits outside the root — the
+    caller rejects before any size probe or open, and the rejection does not
+    echo host filesystem details.
+    """
+    root = os.path.realpath(_capture_root())
+    if not root:
+        return None
+    resolved = os.path.realpath(image_path)
+    if resolved != root and not resolved.startswith(root + os.sep):
+        return None
+    return resolved
 
 
 @mcp.tool(name="validate_capture_quality")
@@ -47,22 +68,25 @@ def validate_capture_quality(image_path: str) -> Dict[str, Any]:
 
 def _gate_result(image_path: str) -> Dict[str, Any]:
     """Gate one image file by path, with the same error shape as the bank errors."""
+    resolved = _resolve_capture_path(image_path)
+    if resolved is None:
+        return {"error": True, "status_code": 400, "message": "capture directory not allowed"}
     try:
-        size = os.path.getsize(image_path)
+        size = os.path.getsize(resolved)
         if size == 0:
             return {"error": True, "status_code": 400, "message": f"{image_path} is empty — capture again"}
         if size > _MAX_CAPTURE_BYTES:
             over = f"{image_path} is {size} bytes; captures over {_MAX_CAPTURE_BYTES} are rejected before reading"
             return {"error": True, "status_code": 400, "message": over}
-        with open(image_path, "rb") as fh:
+        with open(resolved, "rb") as fh:
             return assess_image(fh.read(), filename=image_path)
     except IsADirectoryError:
         return {"error": True, "status_code": 400, "message": f"{image_path} is a directory — pass the photo file"}
     except FileNotFoundError:
         return {"error": True, "status_code": 404, "message": f"image not found: {image_path}"}
-    except ValueError as e:
+    except UnreadableImageError as e:
         # gate-reported decode failure: which file, why
-        return {"error": True, "status_code": 400, "message": str(e)}
+        return {"error": True, "status_code": 400, "message": f"unreadable image {image_path!r} ({e})"}
     except ImportError as e:
         return {"error": True, "status_code": 500, "message": str(e)}
     except OSError as e:

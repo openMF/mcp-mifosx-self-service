@@ -7,10 +7,10 @@ mcp>=1.10,<2
 fastapi-mcp
 
 # Document capture-quality gate (utils/capture_gate.py): quality math is pure
-# NumPy; Pillow is only used to decode image files. Deterministic AI-267
-# decision model, Stage B — no LLM, no CV/ML library.
-numpy>=1.24
-pillow>=9.0
+# NumPy; Pillow is only used to decode image files. Deterministic, no LLM and
+# no CV/ML library.
+numpy>=1.24.0
+pillow>=13.0.0
 black
 flake8
 pytest

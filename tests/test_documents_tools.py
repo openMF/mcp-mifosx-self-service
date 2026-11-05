@@ -42,7 +42,8 @@ def _crisp_page():
 # ── capture gate ─────────────────────────────────────────────────────
 
 
-def test_crisp_capture_passes(tmp_path):
+def test_crisp_capture_passes(tmp_path, monkeypatch):
+    monkeypatch.setenv("MIFOSX_CAPTURE_DIR", str(tmp_path))
     p = tmp_path / "cap.png"
     p.write_bytes(_png(_crisp_page()))
     r = validate_capture_quality(str(p))
@@ -51,7 +52,8 @@ def test_crisp_capture_passes(tmp_path):
     assert r["signals"]["brightness"] > 0.5
 
 
-def test_blank_capture_retakes_on_no_content(tmp_path):
+def test_blank_capture_retakes_on_no_content(tmp_path, monkeypatch):
+    monkeypatch.setenv("MIFOSX_CAPTURE_DIR", str(tmp_path))
     p = tmp_path / "blank.png"
     p.write_bytes(_png(Image.new("L", (512, 384), 244)))
     r = validate_capture_quality(str(p))
@@ -60,7 +62,8 @@ def test_blank_capture_retakes_on_no_content(tmp_path):
     assert r["signals"]["ink_ratio"] < RETAKE_INK_MIN
 
 
-def test_dark_capture_retakes_on_too_dark(tmp_path):
+def test_dark_capture_retakes_on_too_dark(tmp_path, monkeypatch):
+    monkeypatch.setenv("MIFOSX_CAPTURE_DIR", str(tmp_path))
     arr = Image.eval(_crisp_page(), lambda px: int(px * 0.01))
     p = tmp_path / "dark.png"
     p.write_bytes(_png(arr))
@@ -90,15 +93,18 @@ def test_readability_review_band_boundaries():
     assert verdict(REVIEW_SHARP_MIN) == "PASS"
 
 
-def test_gate_is_deterministic(tmp_path):
+def test_gate_is_deterministic(tmp_path, monkeypatch):
+    monkeypatch.setenv("MIFOSX_CAPTURE_DIR", str(tmp_path))
     data = _png(_crisp_page())
     p = tmp_path / "cap.png"
     p.write_bytes(data)
     assert validate_capture_quality(str(p)) == validate_capture_quality(str(p))
 
 
-def test_gate_error_shapes(tmp_path):
-    assert validate_capture_quality("/no/such/pic.png")["status_code"] == 404
+def test_gate_error_shapes(tmp_path, monkeypatch):
+    monkeypatch.setenv("MIFOSX_CAPTURE_DIR", str(tmp_path))
+    r = validate_capture_quality(str(tmp_path / "nope.png"))
+    assert r["status_code"] == 404
     assert validate_capture_quality(str(tmp_path))["error"] is True
     bad = tmp_path / "bad.png"
     bad.write_bytes(b"corrupt")
@@ -106,12 +112,19 @@ def test_gate_error_shapes(tmp_path):
     assert r["error"] is True and "bad.png" in r["message"]
 
 
+def test_gate_rejects_capture_outside_the_capture_dir(tmp_path, monkeypatch):
+    monkeypatch.setenv("MIFOSX_CAPTURE_DIR", str(tmp_path))
+    r = validate_capture_quality("/etc/passwd")
+    assert r["error"] is True and r["status_code"] == 400 and "capture directory not allowed" in r["message"]
+
+
 # ── upload flow (stubbed bank) ───────────────────────────────────────
 
 
 @pytest.mark.asyncio
 @patch("routers.documents_tools.make_upload_request", new_callable=AsyncMock)
-async def test_upload_refuses_retake_capture(mock_post, tmp_path):
+async def test_upload_refuses_retake_capture(mock_post, tmp_path, monkeypatch):
+    monkeypatch.setenv("MIFOSX_CAPTURE_DIR", str(tmp_path))
     p = tmp_path / "blank.png"
     p.write_bytes(_png(Image.new("L", (512, 384), 244)))
     r = await upload_client_document(7, str(p))
@@ -124,7 +137,8 @@ async def test_upload_refuses_retake_capture(mock_post, tmp_path):
 @pytest.mark.asyncio
 @patch("routers.documents_tools.make_upload_request", new_callable=AsyncMock)
 @patch("routers.documents_tools.get_auth_header", return_value=AUTH)
-async def test_upload_passes_gate_then_posts_multipart(mock_auth, mock_post, tmp_path):
+async def test_upload_passes_gate_then_posts_multipart(mock_auth, mock_post, tmp_path, monkeypatch):
+    monkeypatch.setenv("MIFOSX_CAPTURE_DIR", str(tmp_path))
     mock_post.return_value = {"resourceId": 7, "documentId": 3}
     p = tmp_path / "good.png"
     p.write_bytes(_png(_crisp_page()))
@@ -146,7 +160,8 @@ async def test_upload_passes_gate_then_posts_multipart(mock_auth, mock_post, tmp
 @pytest.mark.asyncio
 @patch("routers.documents_tools.make_upload_request", new_callable=AsyncMock)
 @patch("routers.documents_tools.get_auth_header", return_value=AUTH)
-async def test_upload_force_overrides_retake(mock_auth, mock_post, tmp_path):
+async def test_upload_force_overrides_retake(mock_auth, mock_post, tmp_path, monkeypatch):
+    monkeypatch.setenv("MIFOSX_CAPTURE_DIR", str(tmp_path))
     mock_post.return_value = {"resourceId": 9}
     p = tmp_path / "blank.png"
     p.write_bytes(_png(Image.new("L", (512, 384), 244)))
@@ -254,12 +269,21 @@ async def test_verify_rejects_empty_fields(mock_auth, mock_get):
 def test_name_token_set_and_fold_rules():
     assert vf.compare_name("Reddy Reyyappa", ["Reyyappa Reddy"])[0] == "MATCH"
     assert vf.compare_name("reyyappa   reddy", ["Reyyappa Reddy"])[0] == "MATCH"
-    assert vf.compare_name("Reyyappa Reddy", ["Reyyappa Kumar Reddy"])[0] == "MATCH"
+    # a partial extracted name is never an exact match — it goes to REVIEW
+    assert vf.compare_name("Reyyappa Reddy", ["Reyyappa Kumar Reddy"])[0] == "REVIEW"
     assert vf.compare_name("Reddy Reyyappa", []) == ("MISMATCH", None)
+
+
+def test_name_partial_vs_full_and_multi_source():
+    # partial name (missing bank-name tokens) -> REVIEW, never MATCH
+    assert vf.compare_name("John", ["John Smith"])[0] == "REVIEW"
+    # ...but an exact source elsewhere in the list still MATCHes
+    assert vf.compare_name("Janet Doe", ["Jane Doe", "Janet Doe"]) == ("MATCH", "Janet Doe")
 
 
 def test_id_compare_is_exact_after_folding():
     assert vf.compare_id("ab 1234 5678", ["AB-1234-5678"]) == ("MATCH", "AB-1234-5678")
+    assert vf.compare_id("AB12345678", ["AB-1234-5678"]) == ("MATCH", "AB-1234-5678")  # separators ignored
     assert vf.compare_id("AB1234567", ["AB-1234-5678"])[0] == "MISMATCH"  # no fuzzy IDs
 
 
@@ -267,6 +291,8 @@ def test_mobile_tolerates_country_code_but_short_core():
     assert vf.compare_mobile("+91 98765 43210", ["9876543210"])[0] == "MATCH"
     assert vf.compare_mobile("9876543210", ["+91 98765 43210"])[0] == "MATCH"
     assert vf.compare_mobile("32 10", ["9876543210"])[0] == "MISMATCH"  # too short to trust
+    # no suffix/substring matching: a short extracted number never matches a longer bank one
+    assert vf.compare_mobile("98765", ["9876543210"])[0] == "MISMATCH"
 
 
 def test_overall_aggregation_rules():

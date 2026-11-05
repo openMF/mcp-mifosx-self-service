@@ -313,7 +313,7 @@ These tools are invoked by MCP-compatible AI clients, not directly via HTTP.
 | -      | `validate_capture_quality` | Run the deterministic capture-quality gate on a document photo BEFORE upload: verdict `RETAKE` (unreadable — take the photo again) / `REVIEW` (borderline — a human should judge) / `PASS` (usable), with the reasons and the measured signals. Offline, no LLM, no CV/ML library — pure NumPy |
 | GET    | `get_client_documents`     | List the client's uploaded documents     |
 | POST   | `upload_client_document`   | Gate-then-upload a photo as a client document: an unreadable (RETAKE) capture is refused with its reasons unless force=True; REVIEW verdicts upload but stay flagged in the capture_gate audit object |
-| GET    | `verify_client_details`    | Compare details the AI client extracted from a document photo (full_name / national_id / mobile_no) against the client's Fineract record: per-field MATCH / REVIEW / MISMATCH verdicts, decided deterministically — no LLM in the comparison |
+| GET    | `verify_client_details`    | Compare details the AI client extracted from a document photo (full_name / national_id / mobile_no) against the client's Fineract record: per-field MATCH / REVIEW / MISMATCH / NO_SOURCE_DATA verdicts, decided deterministically — no LLM in the comparison |
 
 ### Beneficiaries
 
