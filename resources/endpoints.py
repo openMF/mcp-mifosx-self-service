@@ -28,4 +28,8 @@ async def get_endpoints() -> str:
     ## Transfers
     - GET /self/accounttransfers/template?type="tpt" - Transfer template
     - POST /self/accounttransfers?type="tpt" - Make transfer
+
+    ## Statements & Insights (computed by this server, no extra endpoint)
+    - GET /self/savingsaccounts/{id}?associations=transactions - source rows for
+      get_account_statement, get_spending_summary and find_recurring_payments
     """

@@ -12,13 +12,20 @@ async def get_overview() -> str:
     ## User Management
     - Self-service registration for existing clients
     - Registration confirmation with authentication tokens
-    - Secure login with username/password
+    - Login once; the server keeps the session, so tools never ask for a password
     
     ## Account Management
     - View client information
     - List all accounts (savings, loans)
     - View account charges
     - View transaction history
+
+    ## Statements & Insights
+    - Date- and direction-filtered account statement (newest first, paged)
+    - Spending summary: money in / money out, monthly buckets, per-type breakdown
+    - Recurring payments: same-amount, evenly-spaced debits such as subscriptions
+    - All computed by this server from the bank's own transaction rows; rows whose
+      type cannot be classified are labelled "unknown", never guessed
     
     ## Beneficiary Management
     - Add beneficiaries for third-party transfers

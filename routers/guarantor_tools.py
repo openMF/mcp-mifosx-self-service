@@ -5,20 +5,20 @@ from utils.auth import get_auth_header
 
 
 @mcp.tool(name="get_guarantor_template")
-async def get_guarantor_template(loan_id: int, username: str, password: str) -> Dict[str, Any]:
+async def get_guarantor_template(loan_id: int) -> Dict[str, Any]:
     """
     Get template for creating loan guarantors.
     """
-    auth = get_auth_header(username, password)
+    auth = get_auth_header()
     return await make_request("GET", f"/self/loans/{loan_id}/guarantors/template", auth=auth)
 
 
 @mcp.tool(name="get_guarantor_list")
-async def get_loan_guarantors(loan_id: int, username: str, password: str) -> Dict[str, Any]:
+async def get_loan_guarantors(loan_id: int) -> Dict[str, Any]:
     """
     Get list of guarantors for a specific loan.
     """
-    auth = get_auth_header(username, password)
+    auth = get_auth_header()
     return await make_request("GET", f"/self/loans/{loan_id}/guarantors", auth=auth)
 
 
@@ -29,8 +29,6 @@ async def add_loan_guarantor(
     first_name: str,
     last_name: str,
     mobile_number: str,
-    username: str,
-    password: str,
     address_line1: Optional[str] = None,
     city: Optional[str] = None,
     zip_code: Optional[str] = None,
@@ -39,7 +37,7 @@ async def add_loan_guarantor(
     Add a new guarantor for a loan.
     - guarantor_type: 1 for Customer/Client, 3 for External.
     """
-    auth = get_auth_header(username, password)
+    auth = get_auth_header()
     data = {
         "guarantorType": guarantor_type,
         "firstName": first_name,
@@ -58,20 +56,18 @@ async def update_loan_guarantor(
     loan_id: int,
     guarantor_id: int,
     data: Dict[str, Any],
-    username: str,
-    password: str,
 ) -> Dict[str, Any]:
     """
     Update an existing loan guarantor.
     """
-    auth = get_auth_header(username, password)
+    auth = get_auth_header()
     return await make_request("PUT", f"/self/loans/{loan_id}/guarantors/{guarantor_id}", auth=auth, data=data)
 
 
 @mcp.tool(name="delete_guarantor")
-async def delete_loan_guarantor(loan_id: int, guarantor_id: int, username: str, password: str) -> Dict[str, Any]:
+async def delete_loan_guarantor(loan_id: int, guarantor_id: int) -> Dict[str, Any]:
     """
     Delete a loan guarantor.
     """
-    auth = get_auth_header(username, password)
+    auth = get_auth_header()
     return await make_request("DELETE", f"/self/loans/{loan_id}/guarantors/{guarantor_id}", auth=auth)
