@@ -18,6 +18,7 @@ This project enables AI-driven banking workflows such as authentication, account
 *   Manage guarantors for loans.
 *   Manage share accounts and products.
 *   Read account statements and spending insights (statement, summary, recurring payments).
+*   Validate document photos before upload (deterministic capture-quality gate: RETAKE / REVIEW / PASS).
 *   Register for push notifications.
 *   Perform third-party account transfers.
 
@@ -304,6 +305,15 @@ These tools are invoked by MCP-compatible AI clients, not directly via HTTP.
 | GET    | `get_client_images`        | Retrieve client images                    |
 | GET    | `get_client_transactions`  | Retrieve client transactions              |
 | GET    | `get_client_transaction_detail` | Retrieve one client transaction      |
+
+### Document capture & files
+
+| Method | MCP Tool Name              | Description                              |
+|--------|----------------------------|------------------------------------------|
+| -      | `validate_capture_quality` | Run the deterministic capture-quality gate on a document photo BEFORE upload: verdict `RETAKE` (unreadable — take the photo again) / `REVIEW` (borderline — a human should judge) / `PASS` (usable), with the reasons and the measured signals. Offline, no LLM, no CV/ML library — pure NumPy |
+| GET    | `get_client_documents`     | List the client's uploaded documents     |
+| POST   | `upload_client_document`   | Gate-then-upload a photo as a client document: an unreadable (RETAKE) capture is refused with its reasons unless force=True; REVIEW verdicts upload but stay flagged in the capture_gate audit object |
+| GET    | `verify_client_details`    | Compare details the AI client extracted from a document photo (full_name / national_id / mobile_no) against the client's Fineract record: per-field MATCH / REVIEW / MISMATCH / NO_SOURCE_DATA verdicts, decided deterministically — no LLM in the comparison |
 
 ### Beneficiaries
 
