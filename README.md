@@ -341,7 +341,7 @@ These tools are invoked by MCP-compatible AI clients, not directly via HTTP.
 | POST   | `prepare_loan_application`       | Step 1: check a new application (or a change to a pending one) and show its schedule |
 | POST   | `confirm_loan_application`       | Step 2: submit the prepared application, once, after the user says yes |
 | POST   | `cancel_loan_application`        | Drop a prepared application              |
-| POST   | `withdraw_loan_application`      | Withdraw loan application                |
+| POST   | `withdraw_loan_application`      | Withdraw an application still waiting for approval (today's date) |
 
 Loan applications take typed fields (product, amount, number of repayments, loan purpose, expected
 disbursement date). Everything else (interest, repayment frequency, product charges) comes from the bank's
@@ -390,11 +390,19 @@ see the "Honest limits" line in each tool's description.
 
 | Method | MCP Tool Name              | Description                              |
 |--------|----------------------------|------------------------------------------|
-| GET    | `get_guarantor_template`  | Get template for creating guarantors      |
-| GET    | `get_guarantor_list`      | Get list of guarantors for a loan        |
-| POST   | `create_guarantor`        | Add a new guarantor for a loan           |
-| PUT    | `update_guarantor`        | Update an existing guarantor              |
-| DELETE | `delete_guarantor`        | Delete a loan guarantor                  |
+| GET    | `get_guarantor_template`  | Guarantor types and relationship options for a loan |
+| GET    | `get_guarantor_list`      | The guarantors of a loan and their guarantee funds |
+| POST   | `create_guarantor`        | Add a customer, staff or external guarantor (no money held) |
+| PUT    | `update_guarantor`        | Change a guarantor's name, contact, address or relationship |
+| DELETE | `delete_guarantor`        | Remove a guarantor, or one of its guarantee funds |
+| POST   | `prepare_savings_guarantee` | Step 1: check a guarantee from the user's own savings account |
+| POST   | `confirm_savings_guarantee` | Step 2: add the prepared guarantee, once, after the user says yes |
+| POST   | `cancel_savings_guarantee`  | Drop a prepared guarantee                |
+
+These use the self-service guarantor endpoints added in selfservice-plugin #213 and its rules: guarantors
+can be added, changed and removed only while the loan application is waiting for approval, and a savings
+account given as a guarantee must be the user's own. The bank holds the guarantee amount on that account, so
+a savings guarantee is prepared and confirmed like a transfer.
 
 ### Shares
 
