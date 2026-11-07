@@ -331,7 +331,7 @@ These tools are invoked by MCP-compatible AI clients, not directly via HTTP.
 | POST   | `prepare_loan_application`       | Step 1: check a new application (or a change to a pending one) and show its schedule |
 | POST   | `confirm_loan_application`       | Step 2: submit the prepared application, once, after the user says yes |
 | POST   | `cancel_loan_application`        | Drop a prepared application              |
-| POST   | `withdraw_loan_application`      | Withdraw loan application                |
+| POST   | `withdraw_loan_application`      | Withdraw an application still waiting for approval (today's date) |
 
 Loan applications take typed fields (product, amount, number of repayments, loan purpose, expected
 disbursement date). Everything else (interest, repayment frequency, product charges) comes from the bank's
