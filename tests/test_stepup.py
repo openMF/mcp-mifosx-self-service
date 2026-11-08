@@ -6,7 +6,7 @@ import pytest
 from mcp.server.elicitation import AcceptedElicitation, CancelledElicitation, DeclinedElicitation
 
 from routers.stepup_tools import resend_step_up, verify_step_up
-from routers.transfer_tools import transfer_third_party
+from routers.transfer_tools import confirm_transfer, prepare_transfer
 from routers.auth_tools import update_password_self
 from utils import auth, stepup
 from utils.stepup import OtpForm, resend_pending, resolve_step_up, step_up_code, verify_pending
@@ -18,9 +18,16 @@ from tests.stepup_support import (
     TRANSFER,
     TRANSFER_PAYLOAD,
     api_error,
+    bank_routes,
     required,
     standard_api,
 )
+from utils import transfers
+
+
+async def prepare_and_confirm():
+    prepared = await prepare_transfer(11, 22, 100.5, "rent", third_party=True)
+    return await confirm_transfer(prepared["confirmation_id"])
 
 
 @pytest.fixture(autouse=True)
@@ -28,8 +35,10 @@ def clean_state(monkeypatch):
     monkeypatch.delenv("MIFOS_STEP_UP_CHANNEL", raising=False)
     monkeypatch.delenv("MIFOS_STEP_UP_ALLOW_CHAT_OTP", raising=False)
     stepup.clear_pending()
+    transfers.clear_prepared()
     yield
     stepup.clear_pending()
+    transfers.clear_prepared()
 
 
 @pytest.fixture
@@ -475,31 +484,35 @@ def test_only_a_client_with_form_elicitation_gets_the_form(elicitation, supporte
 @pytest.mark.asyncio
 async def test_the_transfer_tool_runs_the_whole_flow_with_a_form():
     auth.save_login({"base64EncodedAuthenticationKey": "c2Vzc2lvbg==", "username": "ana"})
-    api = standard_api(**{"POST /self/accounttransfers?type=tpt": [required(), {"resourceId": 99}]})
-    ctx = FakeContext(accept("123456"))
+    api = bank_routes(**{"POST /self/accounttransfers?type=tpt": [required(), {"resourceId": 99}]})
+    # first the person confirms the transfer, then types the bank's code
+    ctx = FakeContext(
+        SimpleNamespace(action="accept", data=transfers.ConfirmTransferForm(confirm=True)), accept("123456")
+    )
     with (
         patch("routers.transfer_tools.make_request", api),
         patch("utils.stepup.make_request", api),
         patch("utils.stepup._elicitation_context", return_value=ctx),
     ):
-        result = await transfer_third_party(dict(TRANSFER))
+        result = await prepare_and_confirm()
 
-    assert result == {"resourceId": 99}
-    transfers = api.calls_to("POST", "/self/accounttransfers?type=tpt")
-    assert [c["headers"] for c in transfers] == [None, {"X-Step-Up-Token": TOKEN}]
-    assert transfers[0]["data"] == transfers[1]["data"] == TRANSFER
+    assert result["executed"] is True and result["resourceId"] == 99
+    sent = api.calls_to("POST", "/self/accounttransfers?type=tpt")
+    assert [c["headers"] for c in sent] == [None, {"X-Step-Up-Token": TOKEN}]
+    assert sent[0]["data"] == sent[1]["data"]
+    assert {k: sent[0]["data"][k] for k in TRANSFER_PAYLOAD} == TRANSFER_PAYLOAD
 
 
 @pytest.mark.asyncio
 async def test_the_transfer_tool_and_verify_tool_work_together_without_a_form():
     auth.save_login({"base64EncodedAuthenticationKey": "c2Vzc2lvbg==", "username": "ana"})
-    api = standard_api(**{"POST /self/accounttransfers?type=tpt": [required(), {"resourceId": 99}]})
+    api = bank_routes(**{"POST /self/accounttransfers?type=tpt": [required(), {"resourceId": 99}]})
     with (
         patch("routers.transfer_tools.make_request", api),
         patch("utils.stepup.make_request", api),
         patch("utils.stepup._elicitation_context", return_value=None),
     ):
-        waiting = await transfer_third_party(dict(TRANSFER))
+        waiting = await prepare_and_confirm()
         assert waiting["step_up_required"] is True
         done = await verify_step_up(waiting["challengeId"], "123456")
 

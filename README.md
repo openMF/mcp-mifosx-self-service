@@ -17,6 +17,8 @@ This project enables AI-driven banking workflows such as authentication, account
 *   Manage savings accounts (products, applications, transactions, charges).
 *   Manage guarantors for loans.
 *   Manage share accounts and products.
+*   Read account statements and spending insights (statement, summary, recurring payments).
+*   Validate document photos before upload (deterministic capture-quality gate: RETAKE / REVIEW / PASS).
 *   Register for push notifications.
 *   Perform third-party account transfers.
 
@@ -52,6 +54,7 @@ mcp-mifosx-self-service/
 │   ├── transfer_tools.py   # Third-party transfers
 │   ├── loan_tools.py        # Loan products & accounts
 │   ├── savings_tools.py     # Savings accounts & products
+│   ├── statement_tools.py   # Statements, spending summary, recurring payments
 │   ├── guarantor_tools.py  # Loan guarantor management
 │   ├── shares_tools.py     # Share accounts & products
 │   └── notification_tools.py # Push notification registration
@@ -108,8 +111,11 @@ The application connects to a Fineract API. Use environment variables (or a `.en
 
 | `MIFOS_USERNAME` | Self-service username (optional, see below) | none |
 | `MIFOS_PASSWORD` | Self-service password (optional, see below) | none |
-| `MIFOS_STEP_UP_CHANNEL` | `EMAIL` or `SMS`: where the verification code is sent (see below) | first channel the bank offers |
+| `MIFOS_STEP_UP_CHANNEL` | `EMAIL`, `SMS` or `TOTP`: how the verification code reaches the user (see below) | the authenticator app if the user paired one, otherwise the first channel the bank offers |
 | `MIFOS_STEP_UP_ALLOW_CHAT_OTP` | `false` to forbid typing the code in the chat (see below) | `true` |
+| `MIFOS_TRANSFER_MAX_AMOUNT` | Largest transfer the assistant may prepare; larger ones must be made in the bank's app | no limit |
+| `MIFOS_TRANSFER_CONFIRM_TTL_SECONDS` | How long a prepared transfer can be confirmed | `300` |
+| `MIFOS_TIMEZONE` | The bank's time zone (e.g. `America/Mexico_City`), used for the transfer date | server's time zone |
 
 ### Authentication
 
@@ -124,12 +130,41 @@ password or the access token. There are two ways to log in:
 The session lives in the server process. This is safe for the default stdio transport (one server per user);
 do not share one server between several users.
 
+## Transfers: prepare, then confirm
+
+The assistant cannot move money in one call. Every transfer takes two tools:
+
+1. `prepare_transfer(from_account_id, to_account_id, amount, description, ...)` moves no money. It checks that the
+   source is one of your accounts and that the destination is one of your own accounts (for example a loan, for a
+   repayment) or, with `third_party: true`, one of your saved beneficiaries. It checks the amount against
+   `MIFOS_TRANSFER_MAX_AMOUNT` and the available balance, and returns a summary (accounts, amount, currency, fee)
+   with a `confirmation_id`. The assistant shows you the summary and asks you to confirm.
+2. `confirm_transfer(confirmation_id)` sends exactly the request that was prepared. The server keeps it, so the AI
+   cannot change the accounts or the amount in between. The id works **once** and expires after
+   `MIFOS_TRANSFER_CONFIRM_TTL_SECONDS` (5 minutes by default; at most 5 prepared transfers are kept). If your client
+   supports MCP elicitation, it also shows you a form ("Send this ... ?") and nothing is sent unless you confirm
+   there (if the form cannot be shown, nothing is sent either). If the bank asks for a one-time code, the confirmation continues as described below.
+
+`cancel_transfer(confirmation_id)` drops a prepared transfer.
+
+Applying for shares works the same way: `prepare_share_application` (checks the product's share limits and that
+the linked savings account is the client's, active and in the product's currency, and returns the total price),
+then `confirm_share_application` or `cancel_share_application`. A share confirmation id cannot confirm a
+transfer, and the other way round. The bank still has to approve the application.
+
+Adding a beneficiary works the same way, because money can be sent to it later: `prepare_beneficiary(name,
+account_number, office_name, account_type, transfer_limit)` checks the account type ("savings" or "loan") against
+the bank's template and the office against the bank's offices, takes the currency of your own accounts (or the
+`currency` you pass) and saves nothing. `prepare_beneficiary_change(beneficiary_id, name, transfer_limit)` shows
+the old and new values; the bank only lets the name and the transfer limit change. `confirm_beneficiary` saves
+either one, `cancel_beneficiary` drops it.
+
 ## Human-in-the-loop confirmation for sensitive tools
 
 When the bank has step-up authentication turned on (selfservice-plugin, MX-488), some operations need a
 one-time code that the **account owner** receives by e-mail or SMS: third-party transfers, transfers between
-your own accounts, and password changes (`transfer_to_third_party`, `make_third_party_transfer`,
-`transfer_between_accounts`, `make_account_transfer`, `update_account_password`). All other tools are unchanged.
+your own accounts, and password changes (`confirm_transfer`, `update_account_password`). All other tools are
+unchanged.
 
 The AI never sees the code or the one-time token the bank returns for it. The server asks for the code like this:
 
@@ -153,6 +188,37 @@ operation and run another. A waiting operation is kept in memory for 10 minutes 
 Step-up needs a login **session**: call `login`. Credentials from `MIFOS_USERNAME` / `MIFOS_PASSWORD` alone are
 not enough for this step (the bank answers `session.required` and the tool says so). `MIFOS_STEP_UP_CHANNEL` picks
 SMS or e-mail when the user has both; if that channel is not available the first one the bank offers is used.
+
+### Authenticator app
+
+If the bank also offers an **authenticator app** (Google Authenticator, Microsoft Authenticator...) and the user
+paired one, the verification uses it (channel `TOTP`): nothing is sent, the person types the 6-digit code the app
+shows now. By default the bank offers only the app to such a user (so an intercepted SMS is of no use), and this
+server then uses it without any setting.
+
+- **With elicitation** the form asks for "Code from your authenticator app" and, only for a lost phone, "Recovery
+  code" (one of the codes the user saved when pairing; each works once). The form takes one of the two. A wrong
+  code asks again, as before.
+- **Without elicitation** the chat fallback accepts only the 6-digit code of the app, which is valid for seconds
+  and for this one operation. A **recovery code is never accepted in the chat** (it is a long-lived credential);
+  the tool tells the user to use a client with elicitation or the bank's own app. `resend_step_up` does not apply:
+  an app code cannot be sent again.
+- **Pairing, new recovery codes and removing the app are not tools.** The secret and the recovery codes must not
+  pass through an AI conversation, so the user does that in the bank's own app or website.
+
+## Errors
+
+When the bank refuses a request, tools answer with a short, readable error instead of the bank's raw response:
+
+```json
+{"error": true, "status_code": 400,
+ "message": "The parameter `productId` is mandatory.",
+ "errors": [{"message": "The parameter `productId` is mandatory.", "parameter": "productId"}],
+ "code": "validation.msg.validation.errors.exist"}
+```
+
+`errors` lists the fields to fix and `code` is the bank's error code. Developer messages, server paths and HTML
+error pages are never passed on.
 
 ## Running with Docker
 
@@ -219,9 +285,12 @@ These tools are invoked by MCP-compatible AI clients, not directly via HTTP.
 
 | Method | MCP Tool Name              | Description                              |
 |--------|----------------------------|------------------------------------------|
-| POST   | `register_self_service`    | Register a new self-service user          |
-| POST   | `confirm_registration`     | Confirm user registration with token     |
+| POST   | `register_self_service_existing_client` | Register a self-service user for an existing client |
+| POST   | `confirm_self_service_user_registration` | Confirm the registration with the request id and token |
+| POST   | `verify_user_registration` | Same as `confirm_self_service_user_registration` |
+| GET    | `confirm_self_service_user_registration_status` | Check the registration: lists the clients the user can see |
 | POST   | `login`                    | Log in and keep the session in the server |
+| POST   | `authenticate_user_self_service` | Same as `login`                     |
 | POST   | `logout`                   | End the session                           |
 | PUT    | `update_account_password`  | Change the password (asks for a one-time code) |
 
@@ -229,20 +298,34 @@ These tools are invoked by MCP-compatible AI clients, not directly via HTTP.
 
 | Method | MCP Tool Name              | Description                              |
 |--------|----------------------------|------------------------------------------|
-| GET    | `get_client_info`          | Retrieve client information               |
+| GET    | `get_clients_linked_to_user` | The clients linked to the logged-in user (gives the client id) |
+| GET    | `get_client_details`       | Retrieve client information               |
 | GET    | `get_client_accounts`      | Retrieve client accounts                  |
 | GET    | `get_client_charges`       | Retrieve client charges                   |
+| GET    | `get_client_images`        | Retrieve client images                    |
 | GET    | `get_client_transactions`  | Retrieve client transactions              |
+| GET    | `get_client_transaction_detail` | Retrieve one client transaction      |
+
+### Document capture & files
+
+| Method | MCP Tool Name              | Description                              |
+|--------|----------------------------|------------------------------------------|
+| -      | `validate_capture_quality` | Run the deterministic capture-quality gate on a document photo BEFORE upload: verdict `RETAKE` (unreadable — take the photo again) / `REVIEW` (borderline — a human should judge) / `PASS` (usable), with the reasons and the measured signals. Offline, no LLM, no CV/ML library — pure NumPy |
+| GET    | `get_client_documents`     | List the client's uploaded documents     |
+| POST   | `upload_client_document`   | Gate-then-upload a photo as a client document: an unreadable (RETAKE) capture is refused with its reasons unless force=True; REVIEW verdicts upload but stay flagged in the capture_gate audit object |
+| GET    | `verify_client_details`    | Compare details the AI client extracted from a document photo (full_name / national_id / mobile_no) against the client's Fineract record: per-field MATCH / REVIEW / MISMATCH / NO_SOURCE_DATA verdicts, decided deterministically — no LLM in the comparison |
 
 ### Beneficiaries
 
 | Method | MCP Tool Name              | Description                              |
 |--------|----------------------------|------------------------------------------|
-| GET    | `get_beneficiaries`        | List all beneficiaries                    |
-| GET    | `get_beneficiary_template` | Get beneficiary template for an account  |
-| POST   | `add_beneficiary`          | Add a new beneficiary                     |
-| PUT    | `update_beneficiary`      | Update an existing beneficiary            |
-| DELETE | `delete_beneficiary`      | Delete a beneficiary                      |
+| GET    | `get_beneficiary_list`     | List all beneficiaries                    |
+| GET    | `get_beneficiary_template` | The account types a beneficiary can have  |
+| -      | `prepare_beneficiary`      | Step 1: check a new beneficiary (saves nothing) |
+| -      | `prepare_beneficiary_change` | Step 1: check a new name or transfer limit (saves nothing) |
+| POST/PUT | `confirm_beneficiary`    | Step 2: save the prepared beneficiary or change |
+| -      | `cancel_beneficiary`       | Drop a prepared beneficiary or change     |
+| DELETE | `delete_beneficiary`       | Delete a beneficiary                      |
 
 ### Loans
 
@@ -253,11 +336,27 @@ These tools are invoked by MCP-compatible AI clients, not directly via HTTP.
 | GET    | `get_loan_account_details`       | Retrieve loan account details           |
 | GET    | `get_loan_transaction_detail`    | Retrieve loan transaction detail        |
 | GET    | `get_loan_account_charges`       | Retrieve loan charges                    |
-| GET    | `get_loan_template`              | Retrieve loan application template       |
-| POST   | `calculate_loan_repayment_calendar` | Calculate loan repayment schedule    |
-| POST   | `submit_loan_application`        | Submit loan application                  |
-| PUT    | `update_loan_application`        | Update loan application                  |
-| POST   | `withdraw_loan_application`      | Withdraw loan application                |
+| GET    | `get_loan_template`              | Products a client can apply for, or one product's terms and loan purposes |
+| POST   | `calculate_loan_repayment_calendar` | Repayment schedule for an amount and number of repayments (submits nothing) |
+| POST   | `prepare_loan_application`       | Step 1: check a new application (or a change to a pending one) and show its schedule |
+| POST   | `confirm_loan_application`       | Step 2: submit the prepared application, once, after the user says yes |
+| POST   | `cancel_loan_application`        | Drop a prepared application              |
+| POST   | `withdraw_loan_application`      | Withdraw an application still waiting for approval (today's date) |
+
+Loan applications take typed fields (product, amount, number of repayments, loan purpose, expected
+disbursement date). Everything else (interest, repayment frequency, product charges) comes from the bank's
+loan template, and the amount and number of repayments are checked against the product's limits.
+A loan creates a debt, so `prepare_loan_application` returns the schedule the bank calculates and submits
+nothing; `confirm_loan_application` submits it only with the confirmation id, at most once, and asks the
+person in a form when the client can show one. Passing `loan_id` changes an application that is still
+waiting for approval the same way.
+
+### Loan simulation (no login needed)
+
+| Method | MCP Tool Name                   | Description                                              |
+|--------|---------------------------------|----------------------------------------------------------|
+| GET    | `get_loan_simulation_products`  | Loan products available for simulation, with their limits |
+| POST   | `simulate_loan`                 | Estimate interest, total and installments for an amount   |
 
 ### Savings
 
@@ -270,18 +369,40 @@ These tools are invoked by MCP-compatible AI clients, not directly via HTTP.
 | GET    | `get_savings_account_transaction_details` | Get transaction details          |
 | GET    | `get_savings_account_charges`     | Get savings account charges              |
 | GET    | `get_savings_account_template_raw`| Get savings account template             |
-| POST   | `submit_savings_application`     | Submit savings account application       |
-| PUT    | `update_savings_account_application` | Update savings account application    |
+| -      | `prepare_savings_application`    | Step 1: check an application for a savings account and get a summary and a `confirmation_id` (submits nothing) |
+| POST   | `confirm_savings_application`    | Step 2: submit the prepared application once, after the user confirmed |
+| -      | `cancel_savings_application`     | Drop a prepared application |
+| PUT    | `update_savings_account_application` | Change the product, field officer or external id of an application waiting for approval |
+
+### Statements & Insights
+
+Read-only tools that reshape a savings account's own transaction list into a statement
+and spending picture. Everything is computed by the MCP server from the bank's rows —
+see the "Honest limits" line in each tool's description.
+
+| Method | MCP Tool Name              | Description                              |
+|--------|----------------------------|------------------------------------------|
+| GET    | `get_account_statement`    | Date- and direction-filtered statement of one savings account (paged, newest first) |
+| GET    | `get_spending_summary`     | Money in / money out totals, monthly buckets and per-type breakdown |
+| GET    | `find_recurring_payments`  | Same-amount, evenly-spaced debits (subscriptions, instalments) |
 
 ### Guarantors
 
 | Method | MCP Tool Name              | Description                              |
 |--------|----------------------------|------------------------------------------|
-| GET    | `get_guarantor_template`  | Get template for creating guarantors      |
-| GET    | `get_guarantor_list`      | Get list of guarantors for a loan        |
-| POST   | `create_guarantor`        | Add a new guarantor for a loan           |
-| PUT    | `update_guarantor`        | Update an existing guarantor              |
-| DELETE | `delete_guarantor`        | Delete a loan guarantor                  |
+| GET    | `get_guarantor_template`  | Guarantor types and relationship options for a loan |
+| GET    | `get_guarantor_list`      | The guarantors of a loan and their guarantee funds |
+| POST   | `create_guarantor`        | Add a customer, staff or external guarantor (no money held) |
+| PUT    | `update_guarantor`        | Change a guarantor's name, contact, address or relationship |
+| DELETE | `delete_guarantor`        | Remove a guarantor, or one of its guarantee funds |
+| POST   | `prepare_savings_guarantee` | Step 1: check a guarantee from the user's own savings account |
+| POST   | `confirm_savings_guarantee` | Step 2: add the prepared guarantee, once, after the user says yes |
+| POST   | `cancel_savings_guarantee`  | Drop a prepared guarantee                |
+
+These use the self-service guarantor endpoints added in selfservice-plugin #213 and its rules: guarantors
+can be added, changed and removed only while the loan application is waiting for approval, and a savings
+account given as a guarantee must be the user's own. The bank holds the guarantee amount on that account, so
+a savings guarantee is prepared and confirmed like a transfer.
 
 ### Shares
 
@@ -289,6 +410,11 @@ These tools are invoked by MCP-compatible AI clients, not directly via HTTP.
 |--------|----------------------------|------------------------------------------|
 | GET    | `get_share_product_list`  | Get list of share products               |
 | GET    | `get_share_product_details` | Get share product details              |
+| GET    | `get_share_account_template` | Share products a client can apply for; with `product_id`, price and share limits |
+| GET    | `get_share_account`        | One share account or application        |
+| -      | `prepare_share_application` | Step 1: check an application for shares and get a summary and a `confirmation_id` (submits nothing) |
+| POST   | `confirm_share_application` | Step 2: submit the prepared application once, after the user confirmed |
+| -      | `cancel_share_application` | Drop a prepared application |
 
 ### Notifications
 
@@ -298,15 +424,37 @@ These tools are invoked by MCP-compatible AI clients, not directly via HTTP.
 | POST   | `register_for_notifications`  | Register device for push notifications   |
 | PUT    | `update_notification_registration` | Update notification registration     |
 
+### Offices
+
+| Method | MCP Tool Name              | Description                                   |
+|--------|----------------------------|-----------------------------------------------|
+| GET    | `get_offices`              | List the bank's offices (branches)            |
+| GET    | `get_office_details`       | Details of one office                         |
+| GET    | `get_office_services`      | Services an office offers, with working hours |
+| GET    | `get_office_address`       | Street address of an office                   |
+| GET    | `get_office_geolocation`   | Map location of an office                     |
+
+### Profile and pockets
+
+| Method | MCP Tool Name                  | Description                              |
+|--------|--------------------------------|------------------------------------------|
+| GET    | `get_user_details`             | The logged-in user's roles, permissions and clients (banks with OAuth login only; credentials are removed) |
+| GET    | `get_pockets`                  | The accounts saved as favourites (pockets) |
+| POST   | `add_accounts_to_pocket`       | Save the user's loan, savings or share accounts as favourites |
+| POST   | `remove_accounts_from_pocket`  | Remove favourites by mapping id (from `get_pockets`) |
+| GET    | `get_security_activity`        | Logins and sensitive actions (password, transfers, beneficiaries), newest first; filter by type |
+
 ### Transfers
 
 | Method | MCP Tool Name                  | Description                              |
 |--------|--------------------------------|------------------------------------------|
-| GET    | `get_transfer_template`        | Retrieve transfer options                |
+| GET    | `get_account_transfer_template` | Accounts you can transfer between       |
+| GET    | `get_third_party_transfer_template` | Your accounts and saved beneficiaries for third-party transfers |
 | GET    | `get_transfer_fees`            | List the bank's transfer fee rules (filter by type and currency) |
 | POST   | `get_transfer_quote`           | Ask the bank for the exact fee and total of a transfer (moves no money) |
-| POST   | `make_third_party_transfer`   | Perform a third-party account transfer (may ask for a one-time code) |
-| POST   | `transfer_between_accounts`   | Transfer between your own accounts (may ask for a one-time code) |
+| -      | `prepare_transfer`            | Step 1: check a transfer and get a summary and a `confirmation_id` (moves no money) |
+| POST   | `confirm_transfer`            | Step 2: send the prepared transfer once, after the user confirmed (may ask for a one-time code) |
+| -      | `cancel_transfer`             | Drop a prepared transfer |
 | POST   | `verify_step_up`              | Give the code the user received to the operation that waits for it (clients without elicitation) |
 | POST   | `resend_step_up`              | Send the code again |
 

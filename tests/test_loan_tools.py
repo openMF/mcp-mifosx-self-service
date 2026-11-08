@@ -1,4 +1,6 @@
 import pytest
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 from unittest.mock import patch, AsyncMock
 from routers.loan_tools import (
     get_loan_products,
@@ -7,11 +9,10 @@ from routers.loan_tools import (
     get_loan_transaction_detail,
     get_loan_account_charges,
     get_loan_template,
-    calculate_loan_repayment_calendar,
-    submit_loan_application,
-    update_loan_application,
     withdraw_loan_application,
 )
+from tests.stepup_support import FakeApi
+from utils import transfers
 
 
 @pytest.fixture
@@ -95,72 +96,75 @@ async def test_get_loan_template(mock_get_auth_header, mock_make_request, mock_a
     assert result == {"template": True}
     mock_get_auth_header.assert_called_once_with()
     mock_make_request.assert_called_once_with(
-        "GET", "/self/loans/template?clientId=1&productId=2&templateType=individual", auth=mock_auth
+        "GET", "/self/loans/template?clientId=1&templateType=individual&productId=2", auth=mock_auth
     )
 
 
-@pytest.mark.asyncio
-@patch("routers.loan_tools.make_request", new_callable=AsyncMock)
-@patch("routers.loan_tools.get_auth_header")
-async def test_calculate_loan_repayment_calendar(mock_get_auth_header, mock_make_request, mock_auth):
-    mock_get_auth_header.return_value = mock_auth
-    mock_make_request.return_value = {"schedule": []}
-    data = {"amount": 1000}
+PENDING = {"id": 10, "status": {"value": "Submitted and pending approval", "pendingApproval": True}}
 
-    result = await calculate_loan_repayment_calendar(data)
-    assert result == {"schedule": []}
-    mock_get_auth_header.assert_called_once_with()
-    mock_make_request.assert_called_once_with(
-        "POST", "/self/loans?command=calculateLoanSchedule", auth=mock_auth, data=data
+
+def withdraw_api(loan):
+    return FakeApi(
+        **{
+            "GET /self/loans/10": loan,
+            "POST /self/loans/10?command=withdrawnByApplicant": {"resourceId": 10},
+        }
     )
 
 
-@pytest.mark.asyncio
-@patch("routers.loan_tools.make_request", new_callable=AsyncMock)
-@patch("routers.loan_tools.get_auth_header")
-async def test_submit_loan_application(mock_get_auth_header, mock_make_request, mock_auth):
-    mock_get_auth_header.return_value = mock_auth
-    mock_make_request.return_value = {"resourceId": 10}
-    data = {"amount": 1000}
-
-    result = await submit_loan_application(data)
-    assert result == {"resourceId": 10}
-    mock_get_auth_header.assert_called_once_with()
-    mock_make_request.assert_called_once_with("POST", "/self/loans", auth=mock_auth, data=data)
+async def withdraw(api, *args):
+    with patch("routers.loan_tools.make_request", api), patch("routers.loan_tools.get_auth_header", return_value="a"):
+        return await withdraw_loan_application(10, *args)
 
 
 @pytest.mark.asyncio
-@patch("routers.loan_tools.make_request", new_callable=AsyncMock)
-@patch("routers.loan_tools.get_auth_header")
-async def test_update_loan_application(mock_get_auth_header, mock_make_request, mock_auth):
-    mock_get_auth_header.return_value = mock_auth
-    mock_make_request.return_value = {"resourceId": 10}
-    data = {"amount": 2000}
+async def test_withdraw_sends_today_and_the_note(monkeypatch):
+    monkeypatch.setattr(transfers, "today", lambda: date(2026, 10, 31))
+    api = withdraw_api(PENDING)
 
-    result = await update_loan_application(10, data)
-    assert result == {"resourceId": 10}
-    mock_get_auth_header.assert_called_once_with()
-    mock_make_request.assert_called_once_with("PUT", "/self/loans/10", auth=mock_auth, data=data)
+    assert await withdraw(api, "  Changed mind  ") == {"resourceId": 10}
+    (sent,) = api.calls_to("POST", "/self/loans/10?command=withdrawnByApplicant")
+    assert sent["data"] == {
+        "withdrawnOnDate": "31 October 2026",
+        "note": "Changed mind",
+        "dateFormat": "dd MMMM yyyy",
+        "locale": "en",
+    }
 
 
 @pytest.mark.asyncio
-@patch("routers.loan_tools.make_request", new_callable=AsyncMock)
-@patch("routers.loan_tools.get_auth_header")
-async def test_withdraw_loan_application(mock_get_auth_header, mock_make_request, mock_auth):
-    mock_get_auth_header.return_value = mock_auth
-    mock_make_request.return_value = {"resourceId": 10}
+async def test_today_comes_from_the_bank_time_zone(monkeypatch):
+    monkeypatch.setenv(transfers.TIMEZONE_ENV, "America/Mexico_City")
+    expected = datetime.now(ZoneInfo("America/Mexico_City")).date()
+    api = withdraw_api(PENDING)
+    await withdraw(api)
+    (sent,) = api.calls_to("POST", "/self/loans/10?command=withdrawnByApplicant")
+    assert sent["data"]["withdrawnOnDate"] == transfers.format_date(expected)
 
-    result = await withdraw_loan_application(10, "Changed mind")
-    assert result == {"resourceId": 10}
-    mock_get_auth_header.assert_called_once_with()
-    mock_make_request.assert_called_once_with(
-        "POST",
-        "/self/loans/10?command=withdrawnByApplicant",
-        auth=mock_auth,
-        data={
-            "withdrawnOnDate": "30 August 2025",
-            "note": "Changed mind",
-            "dateFormat": "dd MMMM yyyy",
-            "locale": "en",
-        },
-    )
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("note", [None, "", "   "])
+async def test_the_note_is_optional(note):
+    api = withdraw_api(PENDING)
+    await withdraw(api, note)
+    (sent,) = api.calls_to("POST", "/self/loans/10?command=withdrawnByApplicant")
+    assert "note" not in sent["data"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "loan, status, text",
+    [
+        (
+            {"id": 10, "status": {"value": "Active", "pendingApproval": False}},
+            400,
+            "Loan 10 is Active. Only an application that is still waiting for approval",
+        ),
+        ({"error": True, "status_code": 404, "message": "not found"}, 404, "not found among the user's loans"),
+    ],
+)
+async def test_only_a_pending_application_of_the_user_is_withdrawn(loan, status, text):
+    api = withdraw_api(loan)
+    result = await withdraw(api, "x")
+    assert result["status_code"] == status and text in result["message"]
+    assert api.calls_to("POST", "/self/loans/10?command=withdrawnByApplicant") == []
