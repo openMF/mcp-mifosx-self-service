@@ -18,14 +18,14 @@ CANCEL = ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHi
 
 
 @mcp.tool(name="get_share_product_list")
-async def get_shares_products(client_id: int) -> Dict[str, Any]:
+async def get_shares_products(client_id: int) -> Any:
     """Get List of Share Product"""
     auth = get_auth_header()
     return await make_request("GET", f"/self/products/share?clientId={client_id}", auth=auth)
 
 
 @mcp.tool(name="get_share_product_details")
-async def get_shares_product_details(product_id: int) -> Dict[str, Any]:
+async def get_shares_product_details(product_id: int) -> Any:
     """Get the details of one share product."""
     auth = get_auth_header()
     return await make_request("GET", f"/self/products/share/{product_id}", auth=auth)

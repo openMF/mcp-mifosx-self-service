@@ -21,7 +21,7 @@ CANCEL = ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHi
 
 
 @mcp.tool(name="get_loan_products")
-async def get_loan_products(client_id: int) -> Dict[str, Any]:
+async def get_loan_products(client_id: int) -> Any:
     """Retrieve available loan products."""
     auth = get_auth_header()
     return await make_request(
@@ -32,7 +32,7 @@ async def get_loan_products(client_id: int) -> Dict[str, Any]:
 
 
 @mcp.tool(name="get_loan_product_details")
-async def get_loan_product_details(product_id: int) -> Dict[str, Any]:
+async def get_loan_product_details(product_id: int) -> Any:
     """Retrieve the details of one loan product."""
     auth = get_auth_header()
     return await make_request(
