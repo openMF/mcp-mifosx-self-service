@@ -118,7 +118,28 @@ def test_gate_rejects_capture_outside_the_capture_dir(tmp_path, monkeypatch):
     assert r["error"] is True and r["status_code"] == 400 and "capture directory not allowed" in r["message"]
 
 
+def test_gate_refuses_every_capture_when_no_capture_dir_is_set(tmp_path, monkeypatch):
+    # A crisp image in the server's working directory must not be readable without MIFOSX_CAPTURE_DIR
+    monkeypatch.delenv("MIFOSX_CAPTURE_DIR", raising=False)
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "id.png").write_bytes(_png(_crisp_page()))
+    for path in ("id.png", str(tmp_path / "id.png")):
+        r = validate_capture_quality(path)
+        assert r["error"] is True and r["status_code"] == 400 and "capture directory not allowed" in r["message"]
+
+
 # ── upload flow (stubbed bank) ───────────────────────────────────────
+
+
+@pytest.mark.asyncio
+@patch("routers.documents_tools.make_upload_request", new_callable=AsyncMock)
+async def test_upload_refuses_when_no_capture_dir_is_set(mock_post, tmp_path, monkeypatch):
+    monkeypatch.delenv("MIFOSX_CAPTURE_DIR", raising=False)
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "id.png").write_bytes(_png(_crisp_page()))
+    r = await upload_client_document(7, "id.png")
+    mock_post.assert_not_awaited()
+    assert r["error"] is True and "capture directory not allowed" in r["message"]
 
 
 @pytest.mark.asyncio
