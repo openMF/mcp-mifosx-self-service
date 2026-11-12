@@ -64,6 +64,7 @@ async def test_statement_returns_normalised_rows_newest_first(mock_get_auth_head
         "running_balance": 1350.0,
         "type": "Withdrawal",
         "reversed": False,
+        "reversal": False,
     }
     assert result["notes"]
     mock_get_auth_header.assert_called_once_with()
@@ -265,6 +266,26 @@ async def test_spending_summary_totals_monthly_and_by_type(mock_get_auth_header,
 @pytest.mark.asyncio
 @patch("routers.statement_tools.make_request", new_callable=AsyncMock)
 @patch("routers.statement_tools.get_auth_header")
+async def test_spending_summary_leaves_out_reversed_transactions(mock_get_auth_header, mock_make_request, mock_auth):
+    mock_get_auth_header.return_value = mock_auth
+    undone_deposit = {**tx(7, [2026, 1, 15], 900, "Deposit"), "reversed": True}
+    reversed_withdrawal = {**tx(8, [2026, 2, 3], 400, "Withdrawal"), "reversed": True}
+    # The row the reverse command adds for the withdrawal above
+    reversal_row = {**tx(9, [2026, 2, 4], 400, "Withdrawal"), "isReversal": True}
+    mock_make_request.return_value = savings_response(HISTORY + [undone_deposit, reversed_withdrawal, reversal_row])
+
+    result = await get_spending_summary(7, from_date="2026-01-01", to_date="2026-02-28")
+
+    # The same figures as without the reversed rows
+    assert result["totals"] == {"credit": 5300.0, "debit": 3200.0, "unknown": 750.0}
+    assert result["counts"] == {"credit": 2, "debit": 3, "unknown": 1}
+    assert result["rows_examined"] == 6
+    assert result["reversed_rows_skipped"] == 3
+
+
+@pytest.mark.asyncio
+@patch("routers.statement_tools.make_request", new_callable=AsyncMock)
+@patch("routers.statement_tools.get_auth_header")
 async def test_spending_summary_buckets_unknown_dates_and_sorts_by_total(
     mock_get_auth_header, mock_make_request, mock_auth
 ):
@@ -324,6 +345,21 @@ async def test_find_recurring_payments_detects_monthly_debits(mock_get_auth_head
     assert candidate["dates"][0] == "2026-01-05"
     assert "Heuristic" in result["basis"]
     assert "makes no promise about future payments" in result["basis"]
+
+
+@pytest.mark.asyncio
+@patch("routers.statement_tools.make_request", new_callable=AsyncMock)
+@patch("routers.statement_tools.get_auth_header")
+async def test_find_recurring_payments_ignores_reversed_debits(mock_get_auth_header, mock_make_request, mock_auth):
+    mock_get_auth_header.return_value = mock_auth
+    # Three monthly debits, all of them reversed, are not a recurring payment
+    reversed_monthly = [{**tx(i, [2026, i, 5], 250, "Withdrawal"), "reversed": True} for i in (1, 2, 3)]
+    mock_make_request.return_value = savings_response(reversed_monthly)
+
+    result = await find_recurring_payments(7)
+
+    assert result["candidates"] == []
+    assert result["reversed_rows_skipped"] == 3
 
 
 @pytest.mark.asyncio

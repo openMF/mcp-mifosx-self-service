@@ -199,7 +199,14 @@ def _row(tx: Dict[str, Any]) -> Dict[str, Any]:
         "running_balance": _amount(tx.get("runningBalance")),
         "type": type_name,
         "reversed": bool(tx.get("reversed") or tx.get("manuallyReversed")),
+        # The row that the reverse command adds for an earlier transaction
+        "reversal": bool(tx.get("isReversal") or tx.get("reversalTransaction")),
     }
+
+
+def _cancelled(item: Dict[str, Any]) -> bool:
+    """A reversed transaction or a reversal row: Fineract counts neither as money in or out."""
+    return item["reversed"] or item["reversal"]
 
 
 def _extract_rows(result: Any) -> List[Dict[str, Any]]:
@@ -404,7 +411,9 @@ async def get_spending_summary(
     bank-generated statement. Rows the tool cannot classify are reported under
     totals.unknown / counts.unknown rather than being counted as spending, so
     credit + debit + unknown always adds up to the rows examined; mention the
-    unknown figure to the user when it is not zero.
+    unknown figure to the user when it is not zero. Reversed transactions and the
+    reversal rows that cancel them are left out, as the bank does, and counted in
+    reversed_rows_skipped.
     """
     start, end, problem = _resolve_range(from_date, to_date)
     if problem:
@@ -419,7 +428,11 @@ async def get_spending_summary(
     by_month: Dict[str, Dict[str, Any]] = {}
     by_type: Dict[Tuple[str, str], Dict[str, Any]] = {}
 
+    reversed_skipped = 0
     for day, item in _filtered_rows(rows, start, end):
+        if _cancelled(item):
+            reversed_skipped += 1
+            continue
         direction = item["direction"]
         amount = abs(item["amount"]) if item["amount"] is not None else 0.0
         totals[direction] = round(totals[direction] + amount, 2)
@@ -455,6 +468,7 @@ async def get_spending_summary(
         "by_month": months,
         "by_type": types,
         "rows_examined": sum(counts.values()),
+        "reversed_rows_skipped": reversed_skipped,
         "truncated": raw_truncated,
         "basis": (
             "Computed by this MCP tool from the account's own transaction list (absolute amounts, "
@@ -504,7 +518,11 @@ async def find_recurring_payments(
 
     groups: Dict[Tuple[str, str], List[Optional[date]]] = {}
     amounts: Dict[Tuple[str, str], float] = {}
+    reversed_skipped = 0
     for day, item in _filtered_rows(rows, start, end):
+        if _cancelled(item):
+            reversed_skipped += 1
+            continue
         if item["direction"] != "debit" or item["amount"] is None or day is None:
             continue
         key = (str(item["type"] or "unclassified"), f"{abs(item['amount']):.2f}")
@@ -547,6 +565,7 @@ async def find_recurring_payments(
         "groups_considered": len(groups),
         "irregular_groups_ignored": irregular,
         "rows_examined": sum(len(dates) for dates in groups.values()),
+        "reversed_rows_skipped": reversed_skipped,
         "truncated": raw_truncated,
         "basis": (
             "Heuristic computed by this MCP tool: same-amount, same-type debits whose dates are "
