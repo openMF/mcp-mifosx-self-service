@@ -39,9 +39,10 @@ from utils.http import make_request
 _TRANSACTIONS_PATH = "/self/savingsaccounts/{savings_id}?associations=transactions"
 
 # The account endpoint returns the whole history in one response; this caps how many
-# rows a single tool call processes so a long history cannot stall the conversation.
-# When the cap bites, the result carries truncated=True and the caller should narrow
-# the date range and ask again.
+# rows of the requested period a single tool call processes, so a long history cannot
+# stall the conversation. The cap applies after the date filter: when more rows than
+# this match the period, the result carries truncated=True and a narrower date range
+# reaches the rest.
 _MAX_ROWS = 500
 
 # Largest page get_account_statement will return; larger asks are clamped and echoed back.
@@ -214,19 +215,17 @@ def _extract_rows(result: Any) -> List[Dict[str, Any]]:
     return []
 
 
-async def _fetch(savings_id: int) -> Tuple[Optional[List[Dict[str, Any]]], bool, Optional[Dict[str, Any]]]:
+async def _fetch(savings_id: int) -> Tuple[Optional[List[Dict[str, Any]]], Optional[Dict[str, Any]]]:
     """Fetch the account's transactions once.
 
-    Returns ``(rows, truncated, error)`` — exactly one of the three carries meaning:
-    on success ``error`` is None, on failure ``rows`` is None.
+    Returns ``(rows, error)``: on success ``error`` is None, on failure ``rows`` is None.
     """
     auth = get_auth_header()
     path = _TRANSACTIONS_PATH.format(savings_id=savings_id)
     result = await make_request("GET", path, auth=auth)
     if isinstance(result, dict) and result.get("error"):
-        return None, False, dict(result)
-    rows = _extract_rows(result)
-    return rows[:_MAX_ROWS], len(rows) > _MAX_ROWS, None
+        return None, dict(result)
+    return _extract_rows(result), None
 
 
 def _resolve_range(
@@ -288,8 +287,12 @@ def _in_range(day: Optional[date], start: Optional[date], end: Optional[date]) -
 
 def _filtered_rows(
     rows: List[Dict[str, Any]], start: Optional[date], end: Optional[date]
-) -> List[Tuple[Optional[date], Dict[str, Any]]]:
-    """Parse dates once, filter to the period, sort newest first (undated last)."""
+) -> Tuple[List[Tuple[Optional[date], Dict[str, Any]]], bool]:
+    """Parse dates once, filter to the period, sort newest first (undated last).
+
+    Returns ``(rows, truncated)``: at most the newest ``_MAX_ROWS`` rows of the period,
+    and whether more rows than that matched it.
+    """
     filtered: List[Tuple[Optional[date], Dict[str, Any]]] = []
     for tx in rows:
         day = _parse_date(tx.get("date"))
@@ -297,7 +300,7 @@ def _filtered_rows(
             continue
         filtered.append((day, _row(tx)))
     filtered.sort(key=lambda pair: (pair[0] is None, -(pair[0].toordinal() if pair[0] else 0)))
-    return filtered
+    return filtered[:_MAX_ROWS], len(filtered) > _MAX_ROWS
 
 
 def _period_note(raw_truncated: bool, has_more: bool) -> str:
@@ -310,8 +313,8 @@ def _period_note(raw_truncated: bool, has_more: bool) -> str:
         note += " More matching rows exist beyond this page — raise offset or limit to fetch them."
     if raw_truncated:
         note += (
-            " The account history is longer than this tool's working cap, so rows beyond the first"
-            " 500 the API returned are not part of this answer — narrow the date range and ask again."
+            " More than 500 rows match this period (this tool's working cap), so only the newest 500"
+            " are part of this answer — narrow the date range and ask again for the older ones."
         )
     return note
 
@@ -337,9 +340,9 @@ async def get_account_statement(
     by this tool — it is not a bank-issued document. Rows whose transaction type the
     rules cannot classify carry direction "unknown" instead of a guess. The two
     partial-result flags are separate: has_more means matching rows exist beyond
-    this page (page forward to fetch them), while truncated means only that the
-    account's history is longer than this tool's 500-row working cap (narrow the
-    date range and ask again). Neither means the account ended there.
+    this page (page forward to fetch them), while truncated means that more rows
+    match the period than this tool's 500-row working cap (narrow the date range and
+    ask again). Neither means the account ended there.
     """
     if direction is not None and direction not in DIRECTIONS:
         return _error(
@@ -356,11 +359,11 @@ async def get_account_statement(
     if problem:
         return problem
 
-    rows, raw_truncated, failure = await _fetch(savings_id)
+    rows, failure = await _fetch(savings_id)
     if failure:
         return failure
 
-    matched = _filtered_rows(rows, start, end)
+    matched, raw_truncated = _filtered_rows(rows, start, end)
     if direction is not None:
         matched = [item for item in matched if item[1]["direction"] == direction]
 
@@ -410,16 +413,17 @@ async def get_spending_summary(
     if problem:
         return problem
 
-    rows, raw_truncated, failure = await _fetch(savings_id)
+    rows, failure = await _fetch(savings_id)
     if failure:
         return failure
+    period_rows, raw_truncated = _filtered_rows(rows, start, end)
 
     totals = {"credit": 0.0, "debit": 0.0, "unknown": 0.0}
     counts = {"credit": 0, "debit": 0, "unknown": 0}
     by_month: Dict[str, Dict[str, Any]] = {}
     by_type: Dict[Tuple[str, str], Dict[str, Any]] = {}
 
-    for day, item in _filtered_rows(rows, start, end):
+    for day, item in period_rows:
         direction = item["direction"]
         amount = abs(item["amount"]) if item["amount"] is not None else 0.0
         totals[direction] = round(totals[direction] + amount, 2)
@@ -462,8 +466,8 @@ async def get_spending_summary(
             "conversation, not a bank-generated statement; rows classified 'unknown' are counted "
             "separately and never silently counted as spending."
             + (
-                " Partial result: only the first 500 rows the API returned were examined (working"
-                " cap), so these figures do not cover the whole account."
+                " Partial result: more than 500 rows match this period, so only the newest 500 were"
+                " examined (working cap); narrow the date range to cover the rest."
                 if raw_truncated
                 else ""
             )
@@ -498,13 +502,14 @@ async def find_recurring_payments(
     if problem:
         return problem
 
-    rows, raw_truncated, failure = await _fetch(savings_id)
+    rows, failure = await _fetch(savings_id)
     if failure:
         return failure
+    period_rows, raw_truncated = _filtered_rows(rows, start, end)
 
     groups: Dict[Tuple[str, str], List[Optional[date]]] = {}
     amounts: Dict[Tuple[str, str], float] = {}
-    for day, item in _filtered_rows(rows, start, end):
+    for day, item in period_rows:
         if item["direction"] != "debit" or item["amount"] is None or day is None:
             continue
         key = (str(item["type"] or "unclassified"), f"{abs(item['amount']):.2f}")
@@ -554,8 +559,8 @@ async def find_recurring_payments(
             "the transactions that actually cleared in this period, does not know about contracts "
             "or cancellations, and makes no promise about future payments."
             + (
-                " Partial result: only the first 500 rows the API returned were examined (working"
-                " cap), so these figures do not cover the whole account."
+                " Partial result: more than 500 rows match this period, so only the newest 500 were"
+                " examined (working cap); narrow the date range to cover the rest."
                 if raw_truncated
                 else ""
             )
