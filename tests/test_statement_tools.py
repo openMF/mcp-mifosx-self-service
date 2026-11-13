@@ -228,6 +228,48 @@ async def test_statement_caps_working_set_and_says_so(mock_get_auth_header, mock
     assert "working cap" in result["notes"]
 
 
+# A long account: 600 recent withdrawals, then (older, so listed last) five January 2025 deposits.
+LONG_HISTORY = [tx(1000 + i, [2026, 6, 1 + i % 28], 10, "Withdrawal") for i in range(600)] + [
+    tx(i, [2025, 1, 5 + i], 100, "Deposit") for i in range(5)
+]
+
+
+@pytest.mark.asyncio
+@patch("routers.statement_tools.make_request", new_callable=AsyncMock)
+@patch("routers.statement_tools.get_auth_header")
+async def test_statement_reaches_an_old_period_behind_the_working_cap(
+    mock_get_auth_header, mock_make_request, mock_auth
+):
+    mock_get_auth_header.return_value = mock_auth
+    mock_make_request.return_value = savings_response(LONG_HISTORY)
+
+    result = await get_account_statement(7, from_date="2025-01-01", to_date="2025-01-31")
+
+    assert result["total_matching"] == 5
+    assert [row["date"] for row in result["transactions"]][-1] == "2025-01-05"
+    assert result["truncated"] is False
+
+
+@pytest.mark.asyncio
+@patch("routers.statement_tools.make_request", new_callable=AsyncMock)
+@patch("routers.statement_tools.get_auth_header")
+async def test_spending_summary_of_an_old_period_behind_the_working_cap(
+    mock_get_auth_header, mock_make_request, mock_auth
+):
+    mock_get_auth_header.return_value = mock_auth
+    mock_make_request.return_value = savings_response(LONG_HISTORY)
+
+    old = await get_spending_summary(7, from_date="2025-01-01", to_date="2025-01-31")
+    assert old["totals"] == {"credit": 500.0, "debit": 0.0, "unknown": 0.0}
+    assert old["truncated"] is False
+
+    # The whole history still goes through the cap: the newest 500 rows of the period
+    everything = await get_spending_summary(7)
+    assert everything["rows_examined"] == _MAX_ROWS
+    assert everything["truncated"] is True
+    assert "narrow the date range" in everything["basis"]
+
+
 @pytest.mark.asyncio
 @patch("routers.statement_tools.make_request", new_callable=AsyncMock)
 @patch("routers.statement_tools.get_auth_header")
