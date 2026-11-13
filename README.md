@@ -383,7 +383,7 @@ see the "Honest limits" line in each tool's description.
 | Method | MCP Tool Name              | Description                              |
 |--------|----------------------------|------------------------------------------|
 | GET    | `get_account_statement`    | Date- and direction-filtered statement of one savings account (paged, newest first) |
-| GET    | `get_spending_summary`     | Money in / money out totals, monthly buckets and per-type breakdown |
+| GET    | `get_spending_summary`     | Money in / money out totals, monthly buckets and per-type breakdown (reversed transactions left out) |
 | GET    | `find_recurring_payments`  | Same-amount, evenly-spaced debits (subscriptions, instalments) |
 
 ### Guarantors
