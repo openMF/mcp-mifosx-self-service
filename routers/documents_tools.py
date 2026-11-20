@@ -44,9 +44,11 @@ def _resolve_capture_path(image_path: str) -> Optional[str]:
     caller rejects before any size probe or open, and the rejection does not
     echo host filesystem details.
     """
-    root = os.path.realpath(_capture_root())
+    root = _capture_root()
+    # Unset means no capture directory: realpath("") would be the server's working directory
     if not root:
         return None
+    root = os.path.realpath(root)
     resolved = os.path.realpath(image_path)
     if resolved != root and not resolved.startswith(root + os.sep):
         return None
